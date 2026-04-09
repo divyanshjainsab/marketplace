@@ -1,0 +1,102 @@
+services:
+  backend-db:
+    image: postgres:16-alpine
+    container_name: inventory-backend-db
+    restart: unless-stopped
+    env_file:
+      - ./.env
+    environment:
+      POSTGRES_DB: backend_development
+    ports:
+      - "${BACKEND_DB_PORT:-5433}:5432"
+    volumes:
+      - backend_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: inventory-backend
+    restart: unless-stopped
+    env_file:
+      - ./.env
+      - ./backend/.env
+    depends_on:
+      backend-db:
+        condition: service_healthy
+    ports:
+      - "${BACKEND_PORT:-3001}:3000"
+    volumes:
+      - ./backend:/app
+      - backend_bundle:/usr/local/bundle
+    command: bundle exec rails server -b 0.0.0.0 -p 3000
+
+  sso-db:
+    image: postgres:16-alpine
+    container_name: inventory-sso-db
+    restart: unless-stopped
+    env_file:
+      - ./.env
+    environment:
+      POSTGRES_DB: sso_development
+    ports:
+      - "${SSO_DB_PORT:-5434}:5432"
+    volumes:
+      - sso_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  sso:
+    build:
+      context: .
+      dockerfile: sso/Dockerfile
+    container_name: inventory-sso
+    restart: unless-stopped
+    env_file:
+      - ./.env
+      - ./sso/.env
+    depends_on:
+      sso-db:
+        condition: service_healthy
+    ports:
+      - "${SSO_PORT:-3002}:3000"
+    volumes:
+      - ./sso:/app
+      - sso_bundle:/usr/local/bundle
+    command: bundle exec rails server -b 0.0.0.0 -p 3000
+
+  clientfront:
+    build:
+      context: .
+      dockerfile: clientfront/Dockerfile
+    container_name: inventory-clientfront
+    restart: unless-stopped
+    env_file:
+      - ./.env
+      - ./clientfront/.env
+    depends_on:
+      - backend
+      - sso
+    ports:
+      - "${CLIENTFRONT_PORT:-3000}:3000"
+    volumes:
+      - ./clientfront:/app
+      - clientfront_node_modules:/app/node_modules
+      - clientfront_next:/app/.next
+    command: npm run dev
+
+volumes:
+  backend_postgres_data:
+  backend_bundle:
+  sso_postgres_data:
+  sso_bundle:
+  clientfront_node_modules:
+  clientfront_next:

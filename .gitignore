@@ -1,0 +1,16 @@
+backend/log/*
+backend/tmp/*
+backend/storage/*
+backend/vendor/bundle
+sso/log/*
+sso/tmp/*
+sso/storage/*
+sso/vendor/bundle
+clientfront/node_modules
+.DS_Store
+
+!backend/log/.keep
+!backend/tmp/.keep
+!sso/log/.keep
+!sso/tmp/.keep
+.env

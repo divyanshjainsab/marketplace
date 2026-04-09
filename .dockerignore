@@ -1,0 +1,9 @@
+.git
+clientfront/node_modules
+clientfront/.next
+backend/log/*
+backend/tmp/*
+backend/storage/*
+sso/log/*
+sso/tmp/*
+sso/storage/*

@@ -1,0 +1,21 @@
+default: &default
+  adapter: postgresql
+  encoding: unicode
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+  host: <%= ENV.fetch("SSO_DATABASE_HOST", "localhost") %>
+  port: <%= ENV.fetch("SSO_DATABASE_PORT", 5432) %>
+  database: <%= ENV.fetch("SSO_DATABASE_NAME") %>
+  username: <%= ENV.fetch("SSO_DATABASE_USER") %>
+  password: <%= ENV.fetch("SSO_DATABASE_PASSWORD") %>
+
+development:
+  <<: *default
+  database: <%= ENV.fetch("SSO_DATABASE_NAME", "sso_development") %>
+
+test:
+  <<: *default
+  database: sso_test
+
+production:
+  <<: *default
+  database: <%= ENV.fetch("SSO_DATABASE_NAME", "sso_production") %>

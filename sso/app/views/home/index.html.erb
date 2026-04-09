@@ -1,0 +1,8 @@
+<h1>SSO Identity Provider</h1>
+
+<p>Signed in as: <strong><%= current_user.email %></strong></p>
+<p>External ID: <code><%= current_user.external_id %></code></p>
+
+<p>
+  <%= button_to "Logout", logout_path, method: :delete %>
+</p>
