@@ -55,6 +55,9 @@ Rails.application.configure do
 
   # Run jobs inline-ish for local development unless a real queue is configured.
   config.active_job.queue_adapter = :async
+  config.hosts << "backend"
+  config.hosts << "localhost"
+  config.hosts << "127.0.0.1"
 
 
   # Raises error for missing translations.

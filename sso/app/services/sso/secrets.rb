@@ -23,5 +23,11 @@ module Sso
         Rails.application.credentials.dig(:sso, :jwt_ttl_seconds) ||
         3600).to_i
     end
+
+    def self.refresh_token_ttl_seconds
+      (ENV["SSO_REFRESH_TOKEN_TTL_SECONDS"].presence ||
+        Rails.application.credentials.dig(:sso, :refresh_token_ttl_seconds) ||
+        30.days.to_i).to_i
+    end
   end
 end

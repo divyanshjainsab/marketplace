@@ -18,6 +18,7 @@ module Sso
       exp = now + ttl
 
       payload = {
+        typ: "access",
         iss: issuer,
         iat: now,
         exp: exp,
@@ -40,6 +41,8 @@ module Sso
           verify_iss: true
         }
       )
+
+      raise JWT::DecodeError, "invalid_token_type" unless payload["typ"] == "access"
 
       Decoded.new(payload: payload, token: token)
     end

@@ -20,6 +20,7 @@ Bundler.require(*Rails.groups)
 
 require_relative "../lib/middleware/marketplace_resolver"
 require_relative "../lib/middleware/current_user_resolver"
+require_relative "../lib/middleware/jwt_authenticator"
 
 module Backend
   class Application < Rails::Application
@@ -38,6 +39,8 @@ module Backend
     #
     # config.time_zone = "Central Time (US & Canada)"
     # config.eager_load_paths << Rails.root.join("extras")
+    config.autoload_paths << Rails.root.join("app/serializers")
+    config.eager_load_paths << Rails.root.join("app/serializers")
 
     # Only loads a smaller set of middleware suitable for API only apps.
     # Middleware like session, flash, cookies can be added back manually.
@@ -46,6 +49,7 @@ module Backend
 
     # Request-based multi-tenancy (marketplace resolved from the request domain).
     config.middleware.insert_before 0, Middleware::MarketplaceResolver
-    config.middleware.insert_after Middleware::MarketplaceResolver, Middleware::CurrentUserResolver
+    config.middleware.insert_after Middleware::MarketplaceResolver, Middleware::JwtAuthenticator
+    config.middleware.insert_after Middleware::JwtAuthenticator, Middleware::CurrentUserResolver
   end
 end

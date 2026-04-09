@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_04_09_093000) do
+ActiveRecord::Schema[7.1].define(version: 2026_04_09_160001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "pg_trgm"
@@ -41,6 +41,30 @@ ActiveRecord::Schema[7.1].define(version: 2026_04_09_093000) do
     t.index ["marketplace_id"], name: "index_listings_on_marketplace_id"
     t.index ["product_id"], name: "index_listings_on_product_id"
     t.index ["variant_id"], name: "index_listings_on_variant_id"
+  end
+
+  create_table "marketplace_domains", force: :cascade do |t|
+    t.bigint "marketplace_id", null: false
+    t.citext "host", null: false
+    t.datetime "discarded_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["discarded_at"], name: "index_marketplace_domains_on_discarded_at"
+    t.index ["host"], name: "index_marketplace_domains_on_host", unique: true, where: "(discarded_at IS NULL)"
+    t.index ["marketplace_id"], name: "index_marketplace_domains_on_marketplace_id"
+  end
+
+  create_table "marketplace_memberships", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.bigint "marketplace_id", null: false
+    t.string "role", null: false
+    t.datetime "discarded_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["discarded_at"], name: "index_marketplace_memberships_on_discarded_at"
+    t.index ["marketplace_id"], name: "index_marketplace_memberships_on_marketplace_id"
+    t.index ["user_id", "marketplace_id"], name: "index_mkt_memberships_on_user_and_marketplace_active", unique: true, where: "(discarded_at IS NULL)"
+    t.index ["user_id"], name: "index_marketplace_memberships_on_user_id"
   end
 
   create_table "marketplaces", force: :cascade do |t|
@@ -154,6 +178,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_04_09_093000) do
   add_foreign_key "listings", "marketplaces"
   add_foreign_key "listings", "products"
   add_foreign_key "listings", "variants"
+  add_foreign_key "marketplace_domains", "marketplaces"
+  add_foreign_key "marketplace_memberships", "marketplaces"
+  add_foreign_key "marketplace_memberships", "users"
   add_foreign_key "marketplaces", "organizations"
   add_foreign_key "organization_memberships", "organizations"
   add_foreign_key "organization_memberships", "users"

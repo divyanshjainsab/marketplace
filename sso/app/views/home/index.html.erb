@@ -2,6 +2,8 @@
 
 <p>Signed in as: <strong><%= current_user.email %></strong></p>
 <p>External ID: <code><%= current_user.external_id %></code></p>
+<p>2FA is enforced for this account.</p>
+<p>Provisioning URI: <code><%= current_user.otp_provisioning_uri(current_user.email, issuer: "Marketplace SSO") %></code></p>
 
 <p>
   <%= button_to "Logout", logout_path, method: :delete %>

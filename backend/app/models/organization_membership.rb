@@ -6,5 +6,6 @@ class OrganizationMembership < ApplicationRecord
   include Audited
 
   validates :role, presence: true
+  validates :role, inclusion: { in: ->(_) { Rbac::Registry.role_names } }
   validates :user_id, uniqueness: { scope: :organization_id, conditions: -> { kept } }
 end

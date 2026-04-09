@@ -4,6 +4,8 @@
 
 :root {
   color-scheme: light;
+  --surface: #fffdf9;
+  --ink: #1f1a14;
 }
 
 * {
@@ -12,11 +14,16 @@
 
 html {
   min-height: 100%;
+  background: #f2ebdf;
 }
 
 body {
   min-height: 100vh;
   margin: 0;
+  background:
+    radial-gradient(circle at top, rgba(245, 126, 54, 0.14), transparent 32%),
+    linear-gradient(180deg, #f6efe4 0%, #efe4d3 54%, #e8dcc9 100%);
+  color: var(--ink);
 }
 
 @layer utilities {

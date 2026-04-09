@@ -11,8 +11,8 @@ export default function Home() {
               Multi-tenant inventory system scaffold
             </h1>
             <p className="max-w-2xl text-base leading-7 text-stone-700 md:text-lg">
-              This Next.js 14 app is wired for the app router, TypeScript,
-              Tailwind CSS, and Docker-first local development.
+              Browse a tenant storefront publicly, then jump into the authenticated
+              operations workspace for catalog and listing management.
             </p>
           </div>
         </div>
@@ -23,8 +23,7 @@ export default function Home() {
               Frontend
             </p>
             <p className="mt-3 text-sm leading-6 text-stone-700">
-              App router structure is ready for tenant-aware dashboards, portals,
-              and authenticated experiences.
+              Public marketplace browsing is available at <code>/products</code>.
             </p>
           </section>
           <section className="rounded-3xl border border-stone-900/10 bg-stone-50 p-6">
@@ -41,8 +40,8 @@ export default function Home() {
               SSO
             </p>
             <p className="mt-3 text-sm leading-6 text-stone-700">
-              Connect to <code>{process.env.NEXT_PUBLIC_SSO_URL}</code> for
-              authentication flows and hosted tenant-facing views.
+              Use <code>/login</code> to hand off to SSO, receive JWT tokens,
+              and enter the dashboard.
             </p>
           </section>
         </div>
