@@ -10,6 +10,7 @@ export type SessionUser = {
   external_id: string;
   email: string | null;
   name: string | null;
+  roles?: string[];
 };
 
 export type SessionResponse = {
@@ -80,4 +81,3 @@ export type PaginatedResponse<T> = {
     total_pages: number;
   };
 };
-

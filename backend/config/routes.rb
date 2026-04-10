@@ -1,8 +1,18 @@
 Rails.application.routes.draw do
   get "up" => "rails/health#show", as: :rails_health_check
 
+  namespace :auth do
+    get "sso/callback", to: "sso_callbacks#show"
+  end
+
   namespace :api do
     namespace :v1 do
+      namespace :admin do
+        resources :users, only: %i[index show]
+        resources :organizations, only: %i[index show]
+        resources :marketplaces, only: %i[index show]
+      end
+
       resources :product_types
       resources :categories
       resources :products do

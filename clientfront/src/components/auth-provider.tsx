@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { clientApiFetch } from "@/lib/client-api";
 import type { SessionResponse } from "@/lib/types";
 
@@ -15,6 +15,8 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: React.PropsWithChildren) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [session, setSession] = useState<SessionResponse["data"] | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -36,10 +38,13 @@ export function AuthProvider({ children }: React.PropsWithChildren) {
 
   useEffect(() => {
     if (!loading && !session?.user) {
-      router.replace("/login");
+      if (pathname === "/login" || pathname === "/callback") return;
+      const qs = searchParams?.toString();
+      const here = qs ? `${pathname}?${qs}` : pathname;
+      router.replace(`/login?return_to=${encodeURIComponent(here)}`);
       router.refresh();
     }
-  }, [loading, router, session]);
+  }, [loading, pathname, router, searchParams, session]);
 
   const value = useMemo(
     () => ({

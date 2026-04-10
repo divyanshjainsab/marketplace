@@ -2,9 +2,12 @@ module Sso
   class TokenValidator
     Validation = Struct.new(
       :valid,
+      :sso_user_id,
       :external_id,
       :email,
       :name,
+      :roles,
+      :org_id,
       :exp,
       :error,
       keyword_init: true
@@ -53,9 +56,12 @@ module Sso
         user = body["user"] || {}
         return Validation.new(
           valid: true,
+          sso_user_id: user["id"],
           external_id: user["external_id"],
           email: user["email"],
           name: user["name"],
+          roles: body["roles"] || user["roles"] || [],
+          org_id: body["org_id"] || user["org_id"],
           exp: body["exp"],
           error: nil
         )

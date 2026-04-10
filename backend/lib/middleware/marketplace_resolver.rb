@@ -10,6 +10,12 @@ module Middleware
       if request.path == "/up"
         return @app.call(env)
       end
+      if request.path == "/auth/sso/callback"
+        return @app.call(env)
+      end
+      if request.path.start_with?("/api/v1/admin")
+        return @app.call(env)
+      end
 
       Current.request_host = request.host.to_s.downcase
       Current.marketplace = resolve_marketplace(request)

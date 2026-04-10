@@ -8,6 +8,7 @@ module Middleware
       request = ActionDispatch::Request.new(env)
 
       return @app.call(env) if request.path == "/up"
+      return @app.call(env) if request.path == "/auth/sso/callback"
       return @app.call(env) if request.options?
 
       token = bearer_token(request)
@@ -36,8 +37,14 @@ module Middleware
       return nil if external_id.blank?
 
       user = User.kept.find_or_initialize_by(external_id: external_id)
+      if user.respond_to?(:sso_user_id=) && validation.respond_to?(:sso_user_id) && validation.sso_user_id.present?
+        user.sso_user_id = validation.sso_user_id
+      end
       user.email = validation.email if validation.email.present?
       user.name = validation.name if validation.name.present?
+      if user.respond_to?(:roles=) && validation.respond_to?(:roles) && validation.roles.is_a?(Array)
+        user.roles = validation.roles
+      end
       user.save! if user.changed?
       user
     end

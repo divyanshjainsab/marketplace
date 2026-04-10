@@ -20,7 +20,16 @@ module Auth
         valid: true,
         exp: payload["exp"],
         iss: payload["iss"],
-        user: { external_id: user.external_id, email: user.email, name: user.name }
+        roles: payload["roles"] || [],
+        org_id: payload["org_id"],
+        user: {
+          id: payload["user_id"],
+          external_id: user.external_id,
+          email: user.email,
+          name: user.name,
+          roles: payload["roles"] || [],
+          org_id: payload["org_id"]
+        }
       }
     rescue JWT::ExpiredSignature
       render json: { valid: false, error: "expired" }, status: :unauthorized

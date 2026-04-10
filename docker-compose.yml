@@ -93,6 +93,26 @@ services:
       - clientfront_next:/app/.next
     command: npm run dev
 
+  adminfront:
+    build:
+      context: .
+      dockerfile: adminfront/Dockerfile
+    container_name: inventory-adminfront
+    restart: unless-stopped
+    env_file:
+      - ./.env
+      - ./adminfront/.env
+    depends_on:
+      - backend
+      - sso
+    ports:
+      - "${ADMINFRONT_PORT:-3004}:3000"
+    volumes:
+      - ./adminfront:/app
+      - adminfront_node_modules:/app/node_modules
+      - adminfront_next:/app/.next
+    command: npm run dev
+
 volumes:
   backend_postgres_data:
   backend_bundle:
@@ -100,3 +120,5 @@ volumes:
   sso_bundle:
   clientfront_node_modules:
   clientfront_next:
+  adminfront_node_modules:
+  adminfront_next:

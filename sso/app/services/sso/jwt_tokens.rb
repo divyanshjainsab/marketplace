@@ -4,17 +4,17 @@ module Sso
 
     Decoded = Struct.new(:payload, :token, keyword_init: true)
 
-    def self.issue(user:, ttl_seconds: nil)
-      new.issue(user: user, ttl_seconds: ttl_seconds)
+    def self.issue(user:, ttl_seconds: nil, claims: {})
+      new.issue(user: user, ttl_seconds: ttl_seconds, claims: claims)
     end
 
     def self.decode(token:)
       new.decode(token: token)
     end
 
-    def issue(user:, ttl_seconds:)
+    def issue(user:, ttl_seconds:, claims:)
       now = Time.now.to_i
-      ttl = Integer(ttl_seconds || Secrets.jwt_ttl_seconds)
+      ttl = Integer(ttl_seconds || Auth::JwtService.access_ttl_seconds)
       exp = now + ttl
 
       payload = {
@@ -23,8 +23,12 @@ module Sso
         iat: now,
         exp: exp,
         jti: SecureRandom.uuid,
+        user_id: user.id,
         sub: user.jwt_subject,
-        email: user.email
+        email: user.email,
+        name: user.name,
+        roles: Array(claims[:roles].presence || user.jwt_roles),
+        org_id: claims.key?(:org_id) ? claims[:org_id] : user.jwt_org_id
       }
 
       JWT.encode(payload, secret, ALGORITHM)

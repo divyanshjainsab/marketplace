@@ -5,6 +5,7 @@ user.name = "Demo Owner"
 user.external_id = "11111111-1111-1111-1111-111111111111"
 user.password = "Password123"
 user.password_confirmation = "Password123"
+user.email_verified = true
 user.otp_required_for_login = true
 user.otp_secret = "JBSWY3DPEHPK3PXP"
 user.save!

@@ -1,0 +1,9 @@
+Hello <%= @user.name.presence || @user.email %>,
+
+Your <%= @purpose == Auth::EmailOtpService::PURPOSE_EMAIL_VERIFICATION ? "email verification" : "account recovery" %> code is:
+
+<%= @code %>
+
+This code expires in <%= @expires_in_minutes %> minutes.
+
+If you did not request this, you can ignore this email.

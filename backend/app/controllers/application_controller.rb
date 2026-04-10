@@ -23,6 +23,8 @@ class ApplicationController < ActionController::API
   end
 
   def set_current_tenant
+    return if request.path.start_with?("/api/v1/admin") || request.path == "/auth/sso/callback"
+
     ActsAsTenant.current_tenant = current_marketplace
   end
 
@@ -42,6 +44,18 @@ class ApplicationController < ActionController::API
     return if Current.user.present?
 
     render_error("unauthorized", status: :unauthorized)
+  end
+
+  def require_admin!
+    roles = if Current.user.respond_to?(:roles)
+      Array(Current.user.roles)
+    else
+      []
+    end
+
+    return if roles.include?("admin")
+
+    render_error("forbidden", status: :forbidden)
   end
 
   def paginate(scope)

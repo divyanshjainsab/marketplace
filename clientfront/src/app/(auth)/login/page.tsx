@@ -1,16 +1,26 @@
 import { redirect } from "next/navigation";
 
-export default function LoginPage() {
-  const base = process.env.NEXT_PUBLIC_SSO_URL ?? "http://sso:3000";
-  const returnTo =
-    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "") +
-    "/callback";
+type LoginPageProps = {
+  searchParams?: Record<string, string | string[] | undefined>;
+};
 
-  // Architecture note: to set an app-scoped httpOnly cookie, SSO must redirect back with a JWT
-  // (e.g. /callback?token=...). If SSO ignores return_to, users can still login at SSO directly.
-  const url = returnTo?.startsWith("http")
-    ? `${base}/login?return_to=${encodeURIComponent(returnTo)}`
-    : `${base}/login`;
+function sanitizeReturnTo(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const value = raw.trim();
+  if (!value) return null;
+  if (!value.startsWith("/")) return null;
+  if (value.startsWith("//")) return null;
+  return value;
+}
 
-  redirect(url);
+export default function LoginPage({ searchParams }: LoginPageProps) {
+  const ssoBase = (process.env.NEXT_PUBLIC_SSO_URL ?? "http://localhost:3002").replace(/\/+$/, "");
+  const apiBase = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001").replace(/\/+$/, "");
+
+  const returnTo = sanitizeReturnTo(searchParams?.return_to) ?? "/";
+  const redirectUri = `${apiBase}/auth/sso/callback?app=clientfront`;
+
+  redirect(
+    `${ssoBase}/login?redirect_uri=${encodeURIComponent(redirectUri)}&return_to=${encodeURIComponent(returnTo)}`,
+  );
 }

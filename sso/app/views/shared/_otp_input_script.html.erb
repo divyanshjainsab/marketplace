@@ -1,0 +1,70 @@
+<script>
+  (() => {
+    const form = document.getElementById("<%= form_id %>");
+    if (!form) return;
+
+    const hiddenInput = document.getElementById("<%= hidden_input_id %>");
+    const slots = Array.from(form.querySelectorAll("[data-otp-slot]"));
+    const countdown = form.querySelector("[data-otp-countdown]");
+    if (!hiddenInput || slots.length === 0) return;
+
+    const syncValue = () => {
+      hiddenInput.value = slots.map((slot) => slot.value.replace(/\D/g, "").slice(0, 1)).join("");
+    };
+
+    const focusSlot = (index) => {
+      const target = slots[index];
+      if (!target) return;
+      target.focus();
+      target.select();
+    };
+
+    slots.forEach((slot, index) => {
+      slot.addEventListener("input", (event) => {
+        slot.value = event.target.value.replace(/\D/g, "").slice(0, 1);
+        syncValue();
+        if (slot.value && index < slots.length - 1) focusSlot(index + 1);
+      });
+
+      slot.addEventListener("keydown", (event) => {
+        if (event.key === "Backspace" && !slot.value && index > 0) focusSlot(index - 1);
+        if (event.key === "ArrowLeft" && index > 0) {
+          event.preventDefault();
+          focusSlot(index - 1);
+        }
+        if (event.key === "ArrowRight" && index < slots.length - 1) {
+          event.preventDefault();
+          focusSlot(index + 1);
+        }
+      });
+
+      slot.addEventListener("paste", (event) => {
+        const pasted = (event.clipboardData || window.clipboardData).getData("text").replace(/\D/g, "").slice(0, slots.length);
+        if (!pasted) return;
+
+        event.preventDefault();
+        slots.forEach((input, inputIndex) => {
+          input.value = pasted[inputIndex] || "";
+        });
+        syncValue();
+        focusSlot(Math.min(pasted.length, slots.length - 1));
+      });
+    });
+
+    form.addEventListener("submit", syncValue);
+    focusSlot(0);
+
+    if (countdown) {
+      const expiresAt = Number(countdown.dataset.expiresAt) * 1000;
+      const render = () => {
+        const remaining = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
+        const minutes = Math.floor(remaining / 60).toString().padStart(2, "0");
+        const seconds = (remaining % 60).toString().padStart(2, "0");
+        countdown.textContent = `${minutes}:${seconds}`;
+      };
+
+      render();
+      window.setInterval(render, 1000);
+    }
+  })();
+</script>
