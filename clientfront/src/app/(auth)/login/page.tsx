@@ -14,13 +14,11 @@ function sanitizeReturnTo(raw: unknown): string | null {
 }
 
 export default function LoginPage({ searchParams }: LoginPageProps) {
-  const ssoBase = (process.env.NEXT_PUBLIC_SSO_URL ?? "http://localhost:3002").replace(/\/+$/, "");
   const apiBase = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001").replace(/\/+$/, "");
 
   const returnTo = sanitizeReturnTo(searchParams?.return_to) ?? "/";
-  const redirectUri = `${apiBase}/auth/sso/callback?app=clientfront`;
 
   redirect(
-    `${ssoBase}/login?redirect_uri=${encodeURIComponent(redirectUri)}&return_to=${encodeURIComponent(returnTo)}`,
+    `${apiBase}/auth/oidc/start/clientfront?return_to=${encodeURIComponent(returnTo)}`,
   );
 }

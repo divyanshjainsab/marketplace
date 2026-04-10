@@ -134,6 +134,8 @@ GEM
       rdoc (>= 4.0.0)
       reline (>= 0.4.2)
     json (2.19.3)
+    jwt (3.1.2)
+      base64
     logger (1.7.0)
     loofah (2.25.1)
       crass (~> 1.0.2)
@@ -271,6 +273,7 @@ DEPENDENCIES
   devise
   discard
   faraday
+  jwt
   paper_trail
   pg (~> 1.1)
   pg_search

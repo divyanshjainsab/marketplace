@@ -9,13 +9,13 @@ module Auth
 
     def new
       reset_pending_authentication_state!
-      store_redirect_target!
+      store_login_context!
       self.resource = resource_class.new(email: params.dig(resource_name, :email))
     end
 
     def create
       reset_pending_authentication_state!
-      store_redirect_target!
+      store_login_context!
 
       result = Auth::PasswordLogin.call(
         email: sign_in_params[:email],
@@ -58,8 +58,7 @@ module Auth
       if result.otp_required?
         challenge = Auth::OtpChallenge.start(
           session: session,
-          user: result.user,
-          return_to: current_redirect_target&.redirect_path
+          user: result.user
         )
         return respond_with_two_factor_required(result.user, challenge)
       end
@@ -71,11 +70,6 @@ module Auth
 
     def destroy
       reset_pending_authentication_state!
-
-      revoke_token(request_token) if request_token.present?
-      revoke_refresh_token(request_refresh_token) if request_refresh_token.present?
-
-      cookies.delete(:sso_jwt)
       sign_out(resource_name)
 
       respond_to do |format|
@@ -87,12 +81,19 @@ module Auth
     private
 
     def sign_in_params
-      params.fetch(resource_name, {}).permit(:email, :password, :remember_me, :return_to, :redirect_url, :redirect_uri, :state, :org_slug)
+      params.fetch(resource_name, {}).permit(:email, :password, :remember_me)
+    end
+
+    def store_login_context!
+      org_slug = params[:org_slug].to_s.presence
+      if org_slug.present?
+        session[:login_org_slug] = org_slug
+      else
+        session.delete(:login_org_slug)
+      end
     end
 
     def redirect_authenticated_user!
-      store_redirect_target!
-
       return if pending_email_verification?
       return if two_factor_pending?
 
@@ -118,10 +119,7 @@ module Auth
         end
         format.json do
           render json: {
-            token: completion.token_pair.access_token,
-            refresh_token: completion.token_pair.refresh_token,
-            exp: completion.token_pair.access_exp.to_i,
-            refresh_exp: completion.token_pair.refresh_exp.to_i,
+            ok: true,
             redirect_url: completion.redirect_url,
             user: {
               external_id: user.external_id,
@@ -163,7 +161,8 @@ module Auth
 
       respond_to do |format|
         format.html do
-          flash.now[:alert] = result.message
+          # The view already renders `resource.errors` inside the card.
+          # Avoid duplicating the same message via flash on the same render.
           render :new, status: :unprocessable_entity
         end
         format.json do
@@ -194,36 +193,6 @@ module Auth
       session.delete(:pending_email_verification_user_id)
       session.delete(:two_factor_recovery_user_id)
       session.delete(:pending_login_claims)
-    end
-
-    def request_token
-      header = request.headers["Authorization"].to_s
-      return header.split.last if header.start_with?("Bearer ")
-
-      cookies.encrypted[:sso_jwt].to_s.presence
-    end
-
-    def request_refresh_token
-      params[:refresh_token].to_s.presence
-    end
-
-    def revoke_token(token)
-      decoded = Sso::JwtTokens.decode(token: token)
-      JwtDenylist.create!(
-        jti: decoded.payload["jti"],
-        exp: Time.at(decoded.payload["exp"])
-      )
-    rescue JWT::DecodeError
-      nil
-    end
-
-    def revoke_refresh_token(token)
-      digest = Digest::SHA256.hexdigest(token)
-      RefreshToken.active.find_by(token_digest: digest)&.update!(
-        revoked_at: Time.current,
-        revoked_reason: "logout",
-        last_used_at: Time.current
-      )
     end
 
     def ensure_login_not_rate_limited!

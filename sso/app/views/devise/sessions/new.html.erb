@@ -15,10 +15,10 @@
     <% end %>
 
     <%= form_for(resource, as: resource_name, url: login_path, html: { class: "mt-6 space-y-4", id: "login-form" }) do |f| %>
-      <%= f.hidden_field :redirect_url, value: params[:redirect_uri].presence || params[:redirect_url].presence %>
-      <%= f.hidden_field :state, value: params[:state].presence %>
-      <%= f.hidden_field :return_to, value: params[:return_to].presence %>
-      <%= f.hidden_field :org_slug, value: params[:org_slug].presence %>
+      <%= hidden_field_tag :redirect_url, params[:redirect_uri].presence || params[:redirect_url].presence %>
+      <%= hidden_field_tag :state, params[:state].presence %>
+      <%= hidden_field_tag :return_to, params[:return_to].presence %>
+      <%= hidden_field_tag :org_slug, params[:org_slug].presence %>
 
       <div>
         <%= f.label :email, class: "block text-sm font-medium text-slate-700" %>
@@ -30,7 +30,13 @@
           <%= f.label :password, class: "block text-sm font-medium text-slate-700" %>
           <%= link_to "Forgot password?", new_password_path(resource_name), class: "text-sm font-medium text-slate-700 hover:text-slate-900" %>
         </div>
-        <%= f.password_field :password, autocomplete: "current-password", class: "mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm outline-none ring-offset-2 focus:border-slate-900 focus:ring-2 focus:ring-slate-900/20", placeholder: "Enter your password" %>
+        <%= render "shared/password_input",
+              f: f,
+              field: :password,
+              autocomplete: "current-password",
+              placeholder: "Enter your password",
+              wrapper_class: "mt-1",
+              input_class: "block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 pr-12 text-slate-900 shadow-sm outline-none ring-offset-2 focus:border-slate-900 focus:ring-2 focus:ring-slate-900/20" %>
       </div>
 
       <% if devise_mapping.rememberable? %>
@@ -49,3 +55,5 @@
     </div>
   </div>
 </div>
+
+<%= render "shared/password_enhancements" %>

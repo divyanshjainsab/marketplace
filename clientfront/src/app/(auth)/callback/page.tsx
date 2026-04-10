@@ -17,35 +17,9 @@ export default function CallbackPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const token = searchParams.get("token");
-    const refreshToken = searchParams.get("refresh_token");
-    const exp = searchParams.get("exp");
-    const refreshExp = searchParams.get("refresh_exp");
     const returnTo = sanitizeReturnTo(searchParams.get("return_to") ?? searchParams.get("redirect"));
 
-    if (!token || !refreshToken) {
-      router.replace(`/login?return_to=${encodeURIComponent(returnTo)}`);
-      router.refresh();
-      return;
-    }
-
     (async () => {
-      const response = await fetch("/api/auth/session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({
-          token,
-          refresh_token: refreshToken,
-          exp: exp ? Number(exp) : undefined,
-          refresh_exp: refreshExp ? Number(refreshExp) : undefined,
-        }),
-      });
-
-      if (!response.ok) {
-        setError("Unable to complete sign-in. Please try again.");
-        return;
-      }
-
       router.replace(returnTo);
       router.refresh();
     })().catch(() => {
@@ -71,4 +45,3 @@ export default function CallbackPage() {
     </main>
   );
 }
-

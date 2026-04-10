@@ -10,8 +10,7 @@ module Auth
       end
     end
 
-    # `return_to` is optional to avoid hard failures if a controller forgets to pass it.
-    # When omitted, we fall back to the sanitized redirect target stored in the session.
+    # `return_to` is optional; the OIDC flow does not require app-level return targets.
     def self.start(session:, user:, return_to: nil)
       new(session).start(user: user, return_to: return_to)
     end
@@ -42,8 +41,6 @@ module Auth
     end
 
     def start(user:, return_to: nil)
-      return_to ||= Auth::ReturnTo.fetch(session: session)&.redirect_path
-
       payload = {
         "user_id" => user.id,
         "return_to" => return_to,

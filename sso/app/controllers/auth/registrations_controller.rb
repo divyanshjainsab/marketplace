@@ -4,12 +4,10 @@ module Auth
     before_action :ensure_signup_not_rate_limited!, only: :create
 
     def new
-      store_redirect_target!
       build_resource({})
     end
 
     def create
-      store_redirect_target!
       build_resource(sign_up_params)
       resource.email_verified = false
       resource.otp_required_for_login = false if resource.otp_required_for_login.nil?

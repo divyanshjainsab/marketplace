@@ -9,9 +9,12 @@
 # Use this hook to configure devise mailer, warden hooks and so forth.
 # Many of these configuration options can be set straight in your model.
 Devise.setup do |config|
-  config.warden do |manager|
-    manager.default_strategies(:scope => :user).unshift :two_factor_authenticatable
-  end
+  # We run a custom 2FA flow (password step -> OTP challenge -> OTP verify).
+  # Do not let Warden attempt OTP verification implicitly when views call
+  # `current_user` / `user_signed_in?`.
+
+  # Prevent "log in from params" behavior outside the explicit login endpoints.
+  config.params_authenticatable = false
 
   # The secret key used by Devise. Devise uses this key to generate
   # random tokens. Changing this key will render invalid all existing
@@ -185,7 +188,7 @@ Devise.setup do |config|
 
   # ==> Configuration for :validatable
   # Range for password length.
-  config.password_length = 6..128
+  config.password_length = 8..128
 
   # Email regex used to validate email formats. It simply asserts that
   # one (and only one) @ exists in the given string. This is mainly

@@ -35,6 +35,9 @@ gem "cloudinary"
 # HTTP client (SSO communication)
 gem "faraday"
 
+# JWT (internal session + OIDC id_token verification)
+gem "jwt"
+
 # Build JSON APIs with ease [https://github.com/rails/jbuilder]
 # gem "jbuilder"
 

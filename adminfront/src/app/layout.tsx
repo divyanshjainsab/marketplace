@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { ToastProvider } from "@/components/toast-provider";
+import { AppProviders } from "@/components/providers/app-providers";
 
 export const metadata: Metadata = {
   title: "Admin",
@@ -11,9 +11,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body>
-        <ToastProvider>{children}</ToastProvider>
+        <AppProviders>{children}</AppProviders>
       </body>
     </html>
   );
 }
-

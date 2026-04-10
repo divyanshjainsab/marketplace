@@ -1,36 +1,42 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
-const COOKIE_NAME = "cf_jwt";
-const REFRESH_COOKIE_NAME = "cf_refresh";
+const ACCESS_COOKIE = "mp_access";
+const REFRESH_COOKIE = "mp_refresh";
 
 export async function POST() {
-  const token = cookies().get(COOKIE_NAME)?.value;
-  const refreshToken = cookies().get(REFRESH_COOKIE_NAME)?.value;
+  const accessToken = cookies().get(ACCESS_COOKIE)?.value ?? null;
+  const refreshToken = cookies().get(REFRESH_COOKIE)?.value ?? null;
 
-  if (token || refreshToken) {
-    await fetch(`${process.env.SSO_INTERNAL_URL ?? "http://sso:3000"}/logout`, {
-      method: "DELETE",
+  const cookieHeader = [
+    accessToken ? `${ACCESS_COOKIE}=${accessToken}` : null,
+    refreshToken ? `${REFRESH_COOKIE}=${refreshToken}` : null,
+  ]
+    .filter(Boolean)
+    .join("; ");
+
+  if (cookieHeader) {
+    await fetch(`${process.env.BACKEND_INTERNAL_URL ?? "http://backend:3000"}/auth/session/logout`, {
+      method: "POST",
       headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        Accept: "application/json",
+        Cookie: cookieHeader,
       },
-      body: JSON.stringify({ refresh_token: refreshToken }),
       cache: "no-store",
     }).catch(() => null);
   }
 
-  cookies().set(COOKIE_NAME, "", {
+  cookies().set(ACCESS_COOKIE, "", {
     httpOnly: true,
-    sameSite: "lax",
+    sameSite: "strict",
     secure: process.env.NODE_ENV === "production",
     path: "/",
     maxAge: 0,
   });
 
-  cookies().set(REFRESH_COOKIE_NAME, "", {
+  cookies().set(REFRESH_COOKIE, "", {
     httpOnly: true,
-    sameSite: "lax",
+    sameSite: "strict",
     secure: process.env.NODE_ENV === "production",
     path: "/",
     maxAge: 0,
@@ -38,4 +44,3 @@ export async function POST() {
 
   return NextResponse.json({ ok: true });
 }
-

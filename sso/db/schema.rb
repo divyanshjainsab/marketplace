@@ -10,9 +10,26 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_04_10_170000) do
+ActiveRecord::Schema[7.1].define(version: 2026_04_10_180100) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
+
+  create_table "addresses", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "address_type", null: false
+    t.string "line1", null: false
+    t.string "line2"
+    t.string "city", null: false
+    t.string "state", null: false
+    t.string "country", null: false
+    t.string "zip_code", null: false
+    t.datetime "discarded_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["discarded_at"], name: "index_addresses_on_discarded_at"
+    t.index ["user_id", "address_type", "line1", "line2", "city", "state", "country", "zip_code"], name: "idx_addresses_unique_active", unique: true, where: "(discarded_at IS NULL)"
+    t.index ["user_id"], name: "index_addresses_on_user_id"
+  end
 
   create_table "email_otp_challenges", force: :cascade do |t|
     t.bigint "user_id", null: false
@@ -37,6 +54,28 @@ ActiveRecord::Schema[7.1].define(version: 2026_04_10_170000) do
     t.datetime "updated_at", null: false
     t.index ["exp"], name: "index_jwt_denylists_on_exp"
     t.index ["jti"], name: "index_jwt_denylists_on_jti", unique: true
+  end
+
+  create_table "oidc_authorization_codes", force: :cascade do |t|
+    t.string "code_digest", null: false
+    t.string "client_id", null: false
+    t.text "redirect_uri", null: false
+    t.bigint "user_id", null: false
+    t.string "scope", default: "openid profile", null: false
+    t.string "code_challenge", null: false
+    t.string "code_challenge_method", default: "S256", null: false
+    t.string "nonce", null: false
+    t.jsonb "claims", default: {}, null: false
+    t.string "ip_address"
+    t.string "user_agent"
+    t.datetime "expires_at", null: false
+    t.datetime "used_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["code_digest"], name: "index_oidc_authorization_codes_on_code_digest", unique: true
+    t.index ["expires_at"], name: "index_oidc_authorization_codes_on_expires_at"
+    t.index ["used_at"], name: "index_oidc_authorization_codes_on_used_at"
+    t.index ["user_id"], name: "index_oidc_authorization_codes_on_user_id"
   end
 
   create_table "refresh_tokens", force: :cascade do |t|
@@ -78,14 +117,19 @@ ActiveRecord::Schema[7.1].define(version: 2026_04_10_170000) do
     t.datetime "locked_at"
     t.boolean "email_verified", default: false, null: false
     t.integer "consumed_timestep", default: 0, null: false
+    t.string "phone_number"
+    t.string "avatar_url"
     t.index ["email"], name: "index_users_on_email", unique: true
     t.index ["email_verified"], name: "index_users_on_email_verified"
     t.index ["external_id"], name: "index_users_on_external_id", unique: true
     t.index ["otp_required_for_login"], name: "index_users_on_otp_required_for_login"
+    t.index ["phone_number"], name: "index_users_on_phone_number"
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
     t.index ["unlock_token"], name: "index_users_on_unlock_token", unique: true
   end
 
+  add_foreign_key "addresses", "users"
   add_foreign_key "email_otp_challenges", "users"
+  add_foreign_key "oidc_authorization_codes", "users"
   add_foreign_key "refresh_tokens", "users"
 end

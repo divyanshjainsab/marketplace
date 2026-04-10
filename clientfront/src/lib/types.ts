@@ -20,6 +20,12 @@ export type SessionResponse = {
   };
 };
 
+export type Organization = {
+  id: number;
+  name: string;
+  slug: string;
+};
+
 export type Category = {
   id: number;
   name: string;
@@ -79,5 +85,44 @@ export type PaginatedResponse<T> = {
     per_page: number;
     total_count: number;
     total_pages: number;
+  };
+};
+
+export type HomepageHeroBanner = {
+  title?: string;
+  subtitle?: string;
+  image_url?: string;
+  cta_text?: string;
+  cta_href?: string;
+};
+
+export type PromotionalBlock = {
+  title: string;
+  body?: string;
+  image_url?: string;
+  href?: string;
+};
+
+export type HomepageConfig = {
+  layout_order: Array<
+    "hero_banner" | "featured_products" | "featured_listings" | "categories" | "promotional_blocks"
+  >;
+  hero_banner?: HomepageHeroBanner;
+  featured_products?: number[];
+  featured_listings?: number[];
+  categories?: string[];
+  promotional_blocks?: PromotionalBlock[];
+};
+
+export type HomepageResponse = {
+  data: {
+    organization: Organization;
+    marketplace: TenantInfo;
+    homepage_config: HomepageConfig;
+    resolved: {
+      featured_products: Product[];
+      featured_listings: Listing[];
+      categories: Category[];
+    };
   };
 };

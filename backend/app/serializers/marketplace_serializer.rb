@@ -4,6 +4,7 @@ class MarketplaceSerializer < BaseSerializer
       id: record.id,
       name: record.name,
       subdomain: record.subdomain,
+      custom_domain: record.custom_domain,
       organization_id: record.organization_id
     }
   end

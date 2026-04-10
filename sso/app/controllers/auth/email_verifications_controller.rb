@@ -23,7 +23,7 @@ module Auth
       if @user.otp_required_for_login?
         claims = Auth::LoginClaims.for(user: @user, session: session)
         session[:pending_login_claims] = claims
-        Auth::OtpChallenge.start(session: session, user: @user, return_to: current_redirect_target&.redirect_path)
+        Auth::OtpChallenge.start(session: session, user: @user)
         redirect_to user_two_factor_path, notice: "Email verified. Enter your authenticator code to finish signing in."
         return
       end

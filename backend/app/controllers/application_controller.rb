@@ -24,7 +24,7 @@ class ApplicationController < ActionController::API
   end
 
   def set_current_tenant
-    return if request.path.start_with?("/api/v1/admin") || request.path == "/auth/sso/callback" || request.path == "/auth/sso/claims"
+    return if request.path.start_with?("/api/v1/admin") || request.path.start_with?("/auth/oidc/") || request.path.start_with?("/auth/session") || request.path == "/auth/sso/claims"
 
     ActsAsTenant.current_tenant = current_marketplace
   end
@@ -134,12 +134,6 @@ class ApplicationController < ActionController::API
   end
 
   def current_authenticated_user
-    Current.user ||= begin
-      token = request.authorization.to_s.delete_prefix("Bearer ").strip
-      if token.present?
-        validation = Sso::TokenValidator.call(token: token)
-        User.kept.find_by(external_id: validation.external_id) if validation.valid
-      end
-    end
+    Current.user
   end
 end

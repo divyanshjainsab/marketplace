@@ -10,31 +10,42 @@
 
   <body class="min-h-screen bg-slate-50 text-slate-900 antialiased">
     <header class="sticky top-0 z-40 border-b border-slate-200/70 bg-white/85 backdrop-blur">
-      <nav class="mx-auto flex max-w-5xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
-        <div class="flex items-center gap-3">
+      <nav class="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:flex-nowrap sm:gap-4 sm:px-6 lg:px-8">
+        <div class="flex min-w-0 items-center gap-3">
           <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900 text-white">
             <span class="text-sm font-semibold">ID</span>
           </div>
-          <div class="leading-tight">
-            <div class="text-sm font-semibold text-slate-900">Marketplace Identity</div>
-            <div class="text-xs text-slate-500">SSO & security</div>
+          <div class="min-w-0 leading-tight">
+            <div class="truncate text-sm font-semibold text-slate-900">Marketplace Identity</div>
+            <div class="truncate text-xs text-slate-500">SSO & security</div>
           </div>
         </div>
 
-        <div class="flex items-center gap-2">
+        <div class="flex flex-wrap items-center justify-end gap-2">
           <% if user_signed_in? %>
-            <%= link_to "Dashboard", root_path, class: "rounded-lg px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100" %>
-            <%= button_to "Logout", logout_path, method: :delete, class: "rounded-lg bg-slate-900 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-slate-800" %>
+            <%= link_to "Profile", profile_path, class: "rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 sm:px-3 sm:text-sm" %>
+            <%= link_to "Addresses", addresses_path, class: "rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 sm:px-3 sm:text-sm" %>
+            <%= button_to "Logout", logout_path, method: :delete, class: "rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-slate-800 sm:px-3 sm:text-sm" %>
           <% else %>
-            <%= link_to "Login", login_path, class: "rounded-lg bg-slate-900 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-slate-800" %>
+            <% sign_in_paths = [login_path, new_user_session_path] %>
+            <% sign_up_paths = [new_user_registration_path] %>
+
+            <% unless sign_in_paths.include?(request.path) %>
+              <%= link_to "Sign in", login_path, class: "rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-slate-800 sm:px-3 sm:text-sm" %>
+            <% end %>
+            <% unless sign_up_paths.include?(request.path) %>
+              <%= link_to "Create account", new_user_registration_path, class: "rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 sm:px-3 sm:text-sm" %>
+            <% end %>
           <% end %>
         </div>
       </nav>
     </header>
 
-    <main class="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 lg:px-8">
-      <%= render "shared/flash" %>
-      <%= yield %>
+    <main class="px-4 py-7 sm:px-6 sm:py-10 lg:px-8">
+      <div class="<%= layout_container_class %>">
+        <%= render "shared/flash" %>
+        <%= yield %>
+      </div>
     </main>
   </body>
 </html>

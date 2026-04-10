@@ -1,0 +1,42 @@
+<%= form_for(address, url: url, method: method, html: { class: "mt-6 grid gap-4 sm:grid-cols-2" }) do |f| %>
+  <div class="sm:col-span-2">
+    <%= f.label :address_type, class: "block text-sm font-medium text-slate-700" %>
+    <%= f.select :address_type, Address::ADDRESS_TYPES.map { |t| [t.titleize, t] }, {}, class: "mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm outline-none ring-offset-2 focus:border-slate-900 focus:ring-2 focus:ring-slate-900/20" %>
+  </div>
+
+  <div class="sm:col-span-2">
+    <%= f.label :line1, class: "block text-sm font-medium text-slate-700" %>
+    <%= f.text_field :line1, autocomplete: "address-line1", class: "mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm outline-none ring-offset-2 focus:border-slate-900 focus:ring-2 focus:ring-slate-900/20", placeholder: "Street address" %>
+  </div>
+
+  <div class="sm:col-span-2">
+    <%= f.label :line2, class: "block text-sm font-medium text-slate-700" %>
+    <%= f.text_field :line2, autocomplete: "address-line2", class: "mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm outline-none ring-offset-2 focus:border-slate-900 focus:ring-2 focus:ring-slate-900/20", placeholder: "Apt, suite, unit (optional)" %>
+  </div>
+
+  <div>
+    <%= f.label :city, class: "block text-sm font-medium text-slate-700" %>
+    <%= f.text_field :city, autocomplete: "address-level2", class: "mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm outline-none ring-offset-2 focus:border-slate-900 focus:ring-2 focus:ring-slate-900/20" %>
+  </div>
+
+  <div>
+    <%= f.label :state, class: "block text-sm font-medium text-slate-700" %>
+    <%= f.text_field :state, autocomplete: "address-level1", class: "mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm outline-none ring-offset-2 focus:border-slate-900 focus:ring-2 focus:ring-slate-900/20" %>
+  </div>
+
+  <div>
+    <%= f.label :zip_code, class: "block text-sm font-medium text-slate-700" %>
+    <%= f.text_field :zip_code, autocomplete: "postal-code", class: "mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm outline-none ring-offset-2 focus:border-slate-900 focus:ring-2 focus:ring-slate-900/20" %>
+  </div>
+
+  <div>
+    <%= f.label :country, class: "block text-sm font-medium text-slate-700" %>
+    <%= f.text_field :country, autocomplete: "country-name", class: "mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm outline-none ring-offset-2 focus:border-slate-900 focus:ring-2 focus:ring-slate-900/20", placeholder: "US" %>
+  </div>
+
+  <div class="sm:col-span-2 flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:items-center sm:justify-between">
+    <%= link_to "Cancel", addresses_path, class: "inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 shadow-sm hover:bg-slate-50" %>
+    <%= f.submit submit_label, class: "inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-slate-800" %>
+  </div>
+<% end %>
+

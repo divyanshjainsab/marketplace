@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_04_10_120000) do
+ActiveRecord::Schema[7.1].define(version: 2026_04_10_130011) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "pg_trgm"
@@ -81,6 +81,26 @@ ActiveRecord::Schema[7.1].define(version: 2026_04_10_120000) do
     t.index ["subdomain"], name: "index_marketplaces_on_subdomain", unique: true, where: "(discarded_at IS NULL)"
   end
 
+  create_table "oidc_login_states", force: :cascade do |t|
+    t.string "state", null: false
+    t.string "client_id", null: false
+    t.text "redirect_uri", null: false
+    t.string "code_verifier", null: false
+    t.string "nonce", null: false
+    t.string "app", null: false
+    t.string "return_to"
+    t.string "org_slug"
+    t.string "ip_address"
+    t.string "user_agent"
+    t.datetime "expires_at", null: false
+    t.datetime "used_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["expires_at"], name: "index_oidc_login_states_on_expires_at"
+    t.index ["state"], name: "index_oidc_login_states_on_state", unique: true
+    t.index ["used_at"], name: "index_oidc_login_states_on_used_at"
+  end
+
   create_table "organization_memberships", force: :cascade do |t|
     t.bigint "user_id", null: false
     t.bigint "organization_id", null: false
@@ -100,7 +120,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_04_10_120000) do
     t.datetime "discarded_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.jsonb "homepage_config", default: {}, null: false
     t.index ["discarded_at"], name: "index_organizations_on_discarded_at"
+    t.index ["homepage_config"], name: "index_organizations_on_homepage_config", using: :gin
     t.index ["slug"], name: "index_organizations_on_slug", unique: true, where: "(discarded_at IS NULL)"
   end
 
@@ -134,6 +156,25 @@ ActiveRecord::Schema[7.1].define(version: 2026_04_10_120000) do
     t.index ["search_document"], name: "index_products_on_search_document", using: :gin
     t.index ["sku"], name: "index_products_on_sku", unique: true, where: "(discarded_at IS NULL)"
     t.index ["sku"], name: "index_products_on_sku_trgm_active", opclass: :gin_trgm_ops, where: "(discarded_at IS NULL)", using: :gin
+  end
+
+  create_table "user_sessions", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "refresh_token_digest", null: false
+    t.bigint "org_id"
+    t.jsonb "roles", default: [], null: false
+    t.datetime "expires_at", null: false
+    t.datetime "revoked_at"
+    t.string "revoked_reason"
+    t.datetime "last_used_at"
+    t.string "ip_address"
+    t.string "user_agent"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["expires_at"], name: "index_user_sessions_on_expires_at"
+    t.index ["refresh_token_digest"], name: "index_user_sessions_on_refresh_token_digest", unique: true
+    t.index ["revoked_at"], name: "index_user_sessions_on_revoked_at"
+    t.index ["user_id"], name: "index_user_sessions_on_user_id"
   end
 
   create_table "users", force: :cascade do |t|
@@ -189,5 +230,6 @@ ActiveRecord::Schema[7.1].define(version: 2026_04_10_120000) do
   add_foreign_key "organization_memberships", "users"
   add_foreign_key "products", "categories"
   add_foreign_key "products", "product_types"
+  add_foreign_key "user_sessions", "users"
   add_foreign_key "variants", "products"
 end

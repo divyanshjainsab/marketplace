@@ -32,15 +32,44 @@
 
       <div>
         <%= f.label :password, class: "block text-sm font-medium text-slate-700" %>
-        <%= f.password_field :password, autocomplete: "new-password", class: "mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm outline-none ring-offset-2 focus:border-slate-900 focus:ring-2 focus:ring-slate-900/20", placeholder: "Create a password" %>
-        <% if @minimum_password_length %>
-          <p class="mt-1 text-xs text-slate-500"><%= @minimum_password_length %> characters minimum</p>
-        <% end %>
+        <div class="mt-1 space-y-3" data-password-strength>
+          <%= render "shared/password_input",
+                f: f,
+                field: :password,
+                autocomplete: "new-password",
+                placeholder: "Create a strong password",
+                wrapper_class: "",
+                input_class: "block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 pr-12 text-slate-900 shadow-sm outline-none ring-offset-2 focus:border-slate-900 focus:ring-2 focus:ring-slate-900/20" %>
+
+          <div>
+            <div class="flex items-center justify-between text-xs">
+              <span class="font-semibold text-slate-700">Strength</span>
+              <span class="font-semibold text-slate-700" data-password-meter-label>Weak</span>
+            </div>
+            <div class="mt-2 h-2 w-full rounded-full bg-slate-200">
+              <div class="h-2 rounded-full bg-rose-500" style="width: 0%" data-password-meter-bar></div>
+            </div>
+          </div>
+
+          <ul class="grid gap-1 text-xs text-slate-600 sm:grid-cols-2">
+            <li data-password-rule="length">At least 8 characters</li>
+            <li data-password-rule="upper">1 uppercase letter</li>
+            <li data-password-rule="lower">1 lowercase letter</li>
+            <li data-password-rule="number">1 number</li>
+            <li class="sm:col-span-2" data-password-rule="special">1 special character</li>
+          </ul>
+        </div>
       </div>
 
       <div>
         <%= f.label :password_confirmation, class: "block text-sm font-medium text-slate-700" %>
-        <%= f.password_field :password_confirmation, autocomplete: "new-password", class: "mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm outline-none ring-offset-2 focus:border-slate-900 focus:ring-2 focus:ring-slate-900/20", placeholder: "Confirm your password" %>
+        <%= render "shared/password_input",
+              f: f,
+              field: :password_confirmation,
+              autocomplete: "new-password",
+              placeholder: "Confirm your password",
+              wrapper_class: "mt-1",
+              input_class: "block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 pr-12 text-slate-900 shadow-sm outline-none ring-offset-2 focus:border-slate-900 focus:ring-2 focus:ring-slate-900/20" %>
       </div>
 
       <%= f.submit "Create account", class: "mt-2 inline-flex w-full items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70", data: { disable_with: "Creating..." } %>
@@ -52,3 +81,5 @@
     </div>
   </div>
 </div>
+
+<%= render "shared/password_enhancements" %>

@@ -8,24 +8,45 @@ module Middleware
       request = ActionDispatch::Request.new(env)
 
       return @app.call(env) if request.path == "/up"
-      return @app.call(env) if request.path == "/auth/sso/callback"
+      return @app.call(env) if request.path.start_with?("/auth/oidc/start/")
+      return @app.call(env) if request.path.start_with?("/auth/oidc/callback/")
+      return @app.call(env) if request.path == "/auth/session/refresh"
+      return @app.call(env) if request.path == "/auth/session" || request.path == "/auth/session/logout"
+      return @app.call(env) if request.path == "/auth/sso/claims"
       return @app.call(env) if request.options?
 
-      token = bearer_token(request)
+      token = session_token(request)
 
       if token.blank?
         return unauthorized("missing_token") if auth_required?(request)
         return @app.call(env)
       end
 
-      validation = Sso::TokenValidator.call(token: token)
-      return unauthorized(validation.error || "invalid") unless validation.valid
+      decoded = Auth::SessionTokens.decode(token: token)
+      payload = decoded.payload
 
-      Current.user = resolve_user(validation)
-      Current.org_id = validation.org_id if validation.respond_to?(:org_id)
+      session_id = payload["sid"].to_i
+      if session_id <= 0
+        return unauthorized("invalid_session")
+      end
+
+      session_record = Rails.cache.fetch("session:#{session_id}", expires_in: 5) do
+        UserSession.active.find_by(id: session_id)
+      end
+      return unauthorized("session_revoked") if session_record.nil?
+
+      user = User.kept.find_by(id: payload["user_id"])
+      return unauthorized("unknown_user") if user.nil?
+
+      Current.user = user
+      Current.org_id = payload["org_id"]
       env["app.current_user"] = Current.user
       env["app.current_org_id"] = Current.org_id
       @app.call(env)
+    rescue JWT::ExpiredSignature
+      unauthorized("expired")
+    rescue JWT::DecodeError
+      unauthorized("invalid_token")
     ensure
       # Current is also reset by MarketplaceResolver, but keep this safe even
       # if middleware ordering changes.
@@ -35,28 +56,14 @@ module Middleware
 
     private
 
-    def resolve_user(validation)
-      external_id = validation.external_id.to_s
-      return nil if external_id.blank?
-
-      user = User.kept.find_or_initialize_by(external_id: external_id)
-      if user.respond_to?(:sso_user_id=) && validation.respond_to?(:sso_user_id) && validation.sso_user_id.present?
-        user.sso_user_id = validation.sso_user_id
-      end
-      user.email = validation.email if validation.email.present?
-      user.name = validation.name if validation.name.present?
-      if user.respond_to?(:roles=) && validation.respond_to?(:roles) && validation.roles.is_a?(Array)
-        user.roles = validation.roles
-      end
-      user.save! if user.changed?
-      user
-    end
-
-    def bearer_token(request)
+    def session_token(request)
       header = request.get_header("HTTP_AUTHORIZATION").to_s
-      return nil unless header.start_with?("Bearer ")
+      if header.start_with?("Bearer ")
+        return header.split.last
+      end
 
-      header.split.last
+      cookie_header = request.get_header("HTTP_COOKIE").to_s
+      Auth::SessionCookies.read_from_cookie_header(cookie_header, name: Auth::SessionCookies::ACCESS_COOKIE)
     end
 
     def auth_required?(request)
@@ -70,7 +77,8 @@ module Middleware
 
       request.path.match?(%r{\A/api/v1/(product_types|categories|products|variants|listings)(/\d+)?\z}) ||
         request.path == "/api/v1/products/suggestions" ||
-        request.path == "/api/v1/session"
+        request.path == "/api/v1/session" ||
+        request.path == "/api/v1/homepage"
     end
 
     def unauthorized(code)

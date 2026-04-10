@@ -1,5 +1,5 @@
 import "server-only";
-import { getJwt } from "@/lib/auth";
+import { getJwt, getRefreshToken, ACCESS_COOKIE, REFRESH_COOKIE } from "@/lib/auth";
 import { getTenant } from "@/lib/tenant";
 
 export class ApiError extends Error {
@@ -19,12 +19,19 @@ export async function apiFetch<T>(
   init?: RequestInit,
 ): Promise<T> {
   const jwt = getJwt();
+  const refreshToken = getRefreshToken();
   const tenant = getTenant();
 
   const headers = new Headers(init?.headers);
   headers.set("Accept", "application/json");
 
-  if (jwt) headers.set("Authorization", `Bearer ${jwt}`);
+  const cookie = [
+    jwt ? `${ACCESS_COOKIE}=${jwt}` : null,
+    refreshToken ? `${REFRESH_COOKIE}=${refreshToken}` : null,
+  ]
+    .filter(Boolean)
+    .join("; ");
+  if (cookie) headers.set("Cookie", cookie);
   if (tenant.subdomain) headers.set("X-Marketplace-Subdomain", tenant.subdomain);
 
   const res = await fetch(`${backendBaseUrl()}${path}`, {

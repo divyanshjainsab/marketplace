@@ -10,7 +10,10 @@ module Middleware
       if request.path == "/up"
         return @app.call(env)
       end
-      if request.path == "/auth/sso/callback"
+      if request.path.start_with?("/auth/oidc/")
+        return @app.call(env)
+      end
+      if request.path.start_with?("/auth/session")
         return @app.call(env)
       end
       if request.path == "/auth/sso/claims"
