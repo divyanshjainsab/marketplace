@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 const ADMIN_JWT_COOKIE = "af_jwt";
 const ADMIN_REFRESH_COOKIE = "af_refresh";
 const TENANT_COOKIE = "af_tenant";
+const ORG_COOKIE = "af_org_slug";
 
 const HOP_BY_HOP_HEADERS = new Set([
   "connection",
@@ -29,6 +30,10 @@ function tenantHeaderValue() {
   return cookies().get(TENANT_COOKIE)?.value ?? process.env.NEXT_PUBLIC_DEFAULT_TENANT ?? "";
 }
 
+function orgHeaderValue() {
+  return cookies().get(ORG_COOKIE)?.value ?? "";
+}
+
 async function requestBody(req: NextRequest) {
   if (req.method === "GET" || req.method === "HEAD") return undefined;
 
@@ -47,6 +52,8 @@ async function backendFetch(path: string, req: NextRequest, token: string | null
 
   const tenant = tenantHeaderValue();
   if (tenant) headers.set("X-Marketplace-Subdomain", tenant);
+  const orgSlug = orgHeaderValue();
+  if (orgSlug) headers.set("X-Organization-Slug", orgSlug);
   if (token) headers.set("Authorization", `Bearer ${token}`);
 
   return fetch(url, {
@@ -167,4 +174,3 @@ export async function PUT(req: NextRequest, { params }: { params: { path: string
 export async function DELETE(req: NextRequest, { params }: { params: { path: string[] } }) {
   return handle(req, params);
 }
-

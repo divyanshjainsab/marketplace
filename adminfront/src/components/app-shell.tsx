@@ -9,13 +9,16 @@ import LogoutButton from "@/components/logout-button";
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/users", label: "Users" },
-  { href: "/orgs", label: "Organizations" },
+  { href: "/orgs", label: "Organization" },
   { href: "/marketplaces", label: "Marketplaces" },
+  { href: "/catalog", label: "Catalog" },
+  { href: "/listings", label: "Listings" },
 ];
 
 export default function AppShell({ children }: React.PropsWithChildren) {
   const pathname = usePathname();
-  const { session, loading } = useAuth();
+  const { adminContext, orgSlug, session, loading } = useAuth();
+  const base = orgSlug ? `/${orgSlug}` : "";
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(15,23,42,0.08),_transparent_40%),linear-gradient(180deg,_#fbfbfe_0%,_#f1f5f9_55%,_#eef2ff_100%)] text-slate-900">
@@ -27,14 +30,20 @@ export default function AppShell({ children }: React.PropsWithChildren) {
             <p className="mt-2 text-sm text-slate-400">
               {loading ? "Refreshing session..." : session?.user?.email ?? "Signed in"}
             </p>
+            {adminContext?.organization ? (
+              <p className="mt-3 text-sm text-slate-300">
+                Org: <span className="font-semibold text-white">{adminContext.organization.name}</span>
+              </p>
+            ) : null}
           </div>
           <nav className="mt-10 flex flex-1 flex-col gap-2">
             {NAV_ITEMS.map((item) => {
-              const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+              const href = `${base}${item.href}`;
+              const active = pathname === href || pathname.startsWith(`${href}/`);
               return (
                 <Link
                   key={item.href}
-                  href={item.href}
+                  href={href}
                   className={`rounded-2xl px-4 py-3 text-sm font-medium transition ${
                     active
                       ? "bg-white text-slate-950"
@@ -58,9 +67,16 @@ export default function AppShell({ children }: React.PropsWithChildren) {
           <header className="flex flex-col gap-4 border-b border-slate-900/10 px-6 py-5 md:flex-row md:items-center md:justify-between">
             <div>
               <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Administration</p>
-              <h2 className="mt-2 text-2xl font-semibold tracking-tight">Marketplace platform</h2>
+              <h2 className="mt-2 text-2xl font-semibold tracking-tight">
+                {adminContext?.organization?.name ?? "Marketplace platform"}
+              </h2>
             </div>
             <div className="flex items-center gap-3">
+              {adminContext?.marketplaces?.[0] ? (
+                <div className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-700">
+                  {adminContext.marketplaces[0].name}
+                </div>
+              ) : null}
               <div className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-700">
                 {session?.user?.name ?? session?.user?.email ?? "Loading user"}
               </div>
@@ -73,4 +89,3 @@ export default function AppShell({ children }: React.PropsWithChildren) {
     </div>
   );
 }
-

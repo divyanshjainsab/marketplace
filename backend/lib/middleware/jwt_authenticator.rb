@@ -22,12 +22,15 @@ module Middleware
       return unauthorized(validation.error || "invalid") unless validation.valid
 
       Current.user = resolve_user(validation)
+      Current.org_id = validation.org_id if validation.respond_to?(:org_id)
       env["app.current_user"] = Current.user
+      env["app.current_org_id"] = Current.org_id
       @app.call(env)
     ensure
       # Current is also reset by MarketplaceResolver, but keep this safe even
       # if middleware ordering changes.
       Current.user = nil
+      Current.org_id = nil
     end
 
     private

@@ -3,6 +3,7 @@ Rails.application.routes.draw do
 
   namespace :auth do
     get "sso/callback", to: "sso_callbacks#show"
+    post "sso/claims", to: "sso_claims#create"
   end
 
   namespace :api do
@@ -11,6 +12,7 @@ Rails.application.routes.draw do
         resources :users, only: %i[index show]
         resources :organizations, only: %i[index show]
         resources :marketplaces, only: %i[index show]
+        get :context, to: "context#show"
       end
 
       resources :product_types

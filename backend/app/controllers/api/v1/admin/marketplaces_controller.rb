@@ -3,16 +3,16 @@ module Api
     module Admin
       class MarketplacesController < BaseController
         def index
-          page = paginate(Marketplace.kept.includes(:organization).order(:name))
+          scope = Marketplace.kept.where(organization_id: current_organization.id).order(:name)
+          page = paginate(scope)
           render_collection(page, serializer: MarketplaceSerializer)
         end
 
         def show
-          marketplace = Marketplace.kept.find(params[:id])
+          marketplace = Marketplace.kept.where(organization_id: current_organization.id).find(params[:id])
           render_resource(marketplace, serializer: MarketplaceSerializer)
         end
       end
     end
   end
 end
-

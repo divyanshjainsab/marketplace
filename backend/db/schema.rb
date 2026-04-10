@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_04_09_160001) do
+ActiveRecord::Schema[7.1].define(version: 2026_04_10_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "pg_trgm"
@@ -143,8 +143,11 @@ ActiveRecord::Schema[7.1].define(version: 2026_04_09_160001) do
     t.datetime "discarded_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "sso_user_id"
+    t.jsonb "roles", default: [], null: false
     t.index ["discarded_at"], name: "index_users_on_discarded_at"
     t.index ["external_id"], name: "index_users_on_external_id", unique: true, where: "(discarded_at IS NULL)"
+    t.index ["sso_user_id"], name: "index_users_on_sso_user_id"
   end
 
   create_table "variants", force: :cascade do |t|

@@ -3,16 +3,24 @@ module Api
     module Admin
       class UsersController < BaseController
         def index
-          page = paginate(User.kept.order(created_at: :desc))
+          scope = User.kept
+            .joins(:organization_memberships)
+            .merge(OrganizationMembership.kept.where(organization_id: current_organization.id))
+            .distinct
+            .order(created_at: :desc)
+          page = paginate(scope)
           render_collection(page, serializer: UserSerializer)
         end
 
         def show
-          user = User.kept.find(params[:id])
+          user = User.kept
+            .joins(:organization_memberships)
+            .merge(OrganizationMembership.kept.where(organization_id: current_organization.id))
+            .distinct
+            .find(params[:id])
           render_resource(user, serializer: UserSerializer)
         end
       end
     end
   end
 end
-

@@ -3,16 +3,16 @@ module Api
     module Admin
       class OrganizationsController < BaseController
         def index
-          page = paginate(Organization.kept.order(:name))
-          render_collection(page, serializer: OrganizationSerializer)
+          render json: {
+            data: [OrganizationSerializer.one(current_organization)],
+            meta: { page: 1, per_page: 1, total_count: 1, total_pages: 1 }
+          }
         end
 
         def show
-          organization = Organization.kept.find(params[:id])
-          render_resource(organization, serializer: OrganizationSerializer)
+          render_resource(current_organization, serializer: OrganizationSerializer)
         end
       end
     end
   end
 end
-

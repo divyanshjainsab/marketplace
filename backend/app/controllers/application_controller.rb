@@ -18,12 +18,13 @@ class ApplicationController < ActionController::API
     Current.marketplace = request.get_header("app.current_marketplace")
     Current.user = request.get_header("app.current_user")
     Current.request_host = request.get_header("app.request_host")
+    Current.org_id = request.get_header("app.current_org_id")
     Current.marketplace = current_marketplace
     Current.user = current_authenticated_user
   end
 
   def set_current_tenant
-    return if request.path.start_with?("/api/v1/admin") || request.path == "/auth/sso/callback"
+    return if request.path.start_with?("/api/v1/admin") || request.path == "/auth/sso/callback" || request.path == "/auth/sso/claims"
 
     ActsAsTenant.current_tenant = current_marketplace
   end
@@ -47,13 +48,18 @@ class ApplicationController < ActionController::API
   end
 
   def require_admin!
-    roles = if Current.user.respond_to?(:roles)
-      Array(Current.user.roles)
-    else
-      []
+    return render_error("forbidden", status: :forbidden) if Current.user.blank?
+    return render_error("forbidden", status: :forbidden) if Current.org_id.blank?
+
+    roles = Current.user.respond_to?(:roles) ? Array(Current.user.roles) : []
+    return render_error("forbidden", status: :forbidden) unless roles.include?("admin")
+
+    allowed = Rails.cache.fetch("rbac:org_admin:#{Current.user.id}:#{Current.org_id}", expires_in: 60) do
+      membership = OrganizationMembership.kept.find_by(user_id: Current.user.id, organization_id: Current.org_id)
+      membership.present? && Rbac::Registry.rank_for(membership.role) >= Rbac::Registry.rank_for("admin")
     end
 
-    return if roles.include?("admin")
+    return if allowed
 
     render_error("forbidden", status: :forbidden)
   end

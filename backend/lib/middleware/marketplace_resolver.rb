@@ -13,6 +13,9 @@ module Middleware
       if request.path == "/auth/sso/callback"
         return @app.call(env)
       end
+      if request.path == "/auth/sso/claims"
+        return @app.call(env)
+      end
       if request.path.start_with?("/api/v1/admin")
         return @app.call(env)
       end
