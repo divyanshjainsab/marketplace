@@ -10,12 +10,14 @@ module Rbac
 
     def at_least?(resource:, role:)
       return false if user.nil? || resource.nil?
+      return true if super_admin?
 
       rank_for(resource) >= Registry.rank_for(role)
     end
 
     def organizations_scope
       return Organization.none if user.nil?
+      return Organization.kept if super_admin?
 
       Organization.kept
         .joins(:organization_memberships)
@@ -25,6 +27,7 @@ module Rbac
 
     def marketplaces_scope
       return Marketplace.none if user.nil?
+      return Marketplace.kept if super_admin?
 
       org_ids = OrganizationMembership.kept.where(user_id: user.id).select(:organization_id)
       direct_ids = MarketplaceMembership.kept.where(user_id: user.id).select(:marketplace_id)
@@ -75,6 +78,10 @@ module Rbac
         .where(user_id: user.id)
         .pluck(:marketplace_id, :role)
         .to_h
+    end
+
+    def super_admin?
+      user.respond_to?(:super_admin?) ? user.super_admin? : Array(user&.roles).include?("super_admin")
     end
   end
 end

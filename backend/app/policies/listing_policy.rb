@@ -36,7 +36,7 @@ class ListingPolicy < ApplicationPolicy
       return Marketplace.kept.find_by(id: record.marketplace_id) if record.marketplace_id.present?
     end
 
-    Current.marketplace || ActsAsTenant.current_tenant || Marketplace.kept.find_by(subdomain: ENV["DEFAULT_MARKETPLACE_SUBDOMAIN"])
+    Current.marketplace || ActsAsTenant.current_tenant
   end
 
   def access

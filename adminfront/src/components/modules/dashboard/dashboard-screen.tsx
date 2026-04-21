@@ -64,15 +64,15 @@ export function DashboardScreen() {
       <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-3" data-tour="dashboard-widgets">
         <Card className="bg-slate-50">
           <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-500">Total products</p>
-          <p className="mt-4 text-3xl font-semibold text-slate-950">
+          <div className="mt-4 text-3xl font-semibold text-slate-950">
             {loading ? <Skeleton className="h-9 w-20" /> : formatCount(payload?.totals.products ?? 0)}
-          </p>
+          </div>
         </Card>
         <Card className="bg-slate-50">
           <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-500">Total listings</p>
-          <p className="mt-4 text-3xl font-semibold text-slate-950">
+          <div className="mt-4 text-3xl font-semibold text-slate-950">
             {loading ? <Skeleton className="h-9 w-20" /> : formatCount(payload?.totals.listings ?? 0)}
-          </p>
+          </div>
         </Card>
         <Card className="bg-slate-50">
           <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-500">Marketplace health</p>

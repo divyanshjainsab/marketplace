@@ -8,7 +8,7 @@ services:
     environment:
       POSTGRES_DB: backend_development
     ports:
-      - "${BACKEND_DB_PORT:-5433}:5432"
+      - "${BACKEND_DB_PORT}:5432"
     volumes:
       - backend_postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -30,7 +30,7 @@ services:
       backend-db:
         condition: service_healthy
     ports:
-      - "${BACKEND_PORT:-3001}:3000"
+      - "${BACKEND_PORT}:3000"
     volumes:
       - ./backend:/app
       - backend_bundle:/usr/local/bundle
@@ -45,7 +45,7 @@ services:
     environment:
       POSTGRES_DB: sso_development
     ports:
-      - "${SSO_DB_PORT:-5434}:5432"
+      - "${SSO_DB_PORT}:5432"
     volumes:
       - sso_postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -67,7 +67,7 @@ services:
       sso-db:
         condition: service_healthy
     ports:
-      - "${SSO_PORT:-3002}:3000"
+      - "${SSO_PORT}:3000"
     volumes:
       - ./sso:/app
       - sso_bundle:/usr/local/bundle
@@ -77,16 +77,18 @@ services:
     build:
       context: .
       dockerfile: clientfront/Dockerfile
-    container_name: inventory-clientfront
+    container_name: inventory-clientfront-a
     restart: unless-stopped
     env_file:
       - ./.env
       - ./clientfront/.env
+    environment:
+      NEXT_PUBLIC_APP_URL: "http://localhost:3002"
     depends_on:
       - backend
       - sso
     ports:
-      - "${CLIENTFRONT_PORT:-3000}:3000"
+      - "3002:3000"
     volumes:
       - ./clientfront:/app
       - clientfront_node_modules:/app/node_modules
@@ -97,20 +99,44 @@ services:
     build:
       context: .
       dockerfile: adminfront/Dockerfile
-    container_name: inventory-adminfront
+    container_name: inventory-adminfront-a
     restart: unless-stopped
     env_file:
       - ./.env
       - ./adminfront/.env
+    environment:
+      NEXT_PUBLIC_ADMIN_URL: "http://localhost:3000"
     depends_on:
       - backend
       - sso
     ports:
-      - "${ADMINFRONT_PORT:-3004}:3000"
+      - "3000:3000"
     volumes:
       - ./adminfront:/app
       - adminfront_node_modules:/app/node_modules
       - adminfront_next:/app/.next
+    command: npm run dev
+
+  adminfront-b:
+    build:
+      context: .
+      dockerfile: adminfront/Dockerfile
+    container_name: inventory-adminfront-b
+    restart: unless-stopped
+    env_file:
+      - ./.env
+      - ./adminfront/.env
+    environment:
+      NEXT_PUBLIC_ADMIN_URL: "http://localhost:3003"
+    depends_on:
+      - backend
+      - sso
+    ports:
+      - "3003:3000"
+    volumes:
+      - ./adminfront:/app
+      - adminfront_b_node_modules:/app/node_modules
+      - adminfront_b_next:/app/.next
     command: npm run dev
 
 volumes:
@@ -122,3 +148,6 @@ volumes:
   clientfront_next:
   adminfront_node_modules:
   adminfront_next:
+  adminfront_b_node_modules:
+  adminfront_b_next:
+  

@@ -27,11 +27,13 @@ class User < ApplicationRecord
   end
 
   def jwt_roles
-    ["user"]
+    roles = ["user"]
+    roles << "super_admin" if super_admin?
+    roles
   end
 
-  def jwt_org_id
-    nil
+  def super_admin?
+    self[:super_admin] == true
   end
 
   def active_for_authentication?

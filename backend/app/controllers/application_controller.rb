@@ -3,6 +3,7 @@ class ApplicationController < ActionController::API
   include Pundit::Authorization
 
   before_action :restore_current_context
+  before_action :verify_frontend_proxy_for_unsafe_requests
   before_action :set_current_tenant
   before_action :set_paper_trail_whodunnit
   after_action :reset_current_tenant
@@ -19,12 +20,13 @@ class ApplicationController < ActionController::API
     Current.user = request.get_header("app.current_user")
     Current.request_host = request.get_header("app.request_host")
     Current.org_id = request.get_header("app.current_org_id")
-    Current.marketplace = current_marketplace
-    Current.user = current_authenticated_user
+    Current.organization = request.get_header("app.current_organization")
+    Current.session_org_id = request.get_header("app.session_org_id")
+    Current.session_roles = request.get_header("app.session_roles")
   end
 
   def set_current_tenant
-    return if request.path.start_with?("/api/v1/admin") || request.path.start_with?("/auth/oidc/") || request.path.start_with?("/auth/session") || request.path == "/auth/sso/claims"
+    return if request.path.start_with?("/api/v1/admin") || request.path.start_with?("/auth/oidc/") || request.path.start_with?("/auth/session")
 
     ActsAsTenant.current_tenant = current_marketplace
   end
@@ -48,14 +50,15 @@ class ApplicationController < ActionController::API
   end
 
   def require_admin!
-    return render_error("forbidden", status: :forbidden) if Current.user.blank?
-    return render_error("forbidden", status: :forbidden) if Current.org_id.blank?
+    user = Current.user
+    return render_error("forbidden", status: :forbidden) if user.blank?
+    return if user.respond_to?(:super_admin?) && user.super_admin?
 
-    roles = Current.user.respond_to?(:roles) ? Array(Current.user.roles) : []
-    return render_error("forbidden", status: :forbidden) unless roles.include?("admin")
+    org_id = (Current.organization&.id || Current.org_id || Current.session_org_id).to_i
+    return render_error("forbidden", status: :forbidden) if org_id <= 0
 
-    allowed = Rails.cache.fetch("rbac:org_admin:#{Current.user.id}:#{Current.org_id}", expires_in: 60) do
-      membership = OrganizationMembership.kept.find_by(user_id: Current.user.id, organization_id: Current.org_id)
+    allowed = Rails.cache.fetch("rbac:org_admin:#{user.id}:#{org_id}", expires_in: 60) do
+      membership = OrganizationMembership.kept.find_by(user_id: user.id, organization_id: org_id)
       membership.present? && Rbac::Registry.rank_for(membership.role) >= Rbac::Registry.rank_for("admin")
     end
 
@@ -127,13 +130,24 @@ class ApplicationController < ActionController::API
   end
 
   def current_marketplace
-    Current.marketplace ||= begin
-      subdomain = request.get_header("HTTP_X_MARKETPLACE_SUBDOMAIN").to_s.presence || ENV["DEFAULT_MARKETPLACE_SUBDOMAIN"].to_s.presence
-      Marketplace.kept.find_by(subdomain: subdomain) if subdomain.present?
-    end
+    Current.marketplace
   end
 
   def current_authenticated_user
     Current.user
+  end
+
+  def verify_frontend_proxy_for_unsafe_requests
+    return if request.get? || request.head? || request.options?
+    return unless cookie_backed_session_request?
+    return if request.get_header("HTTP_X_FRONTEND_PROXY").to_s == "1"
+
+    render_error("csrf_failed", status: :forbidden, message: "Request origin not allowed")
+  end
+
+  def cookie_backed_session_request?
+    cookie_header = request.get_header("HTTP_COOKIE").to_s
+    Auth::SessionCookies.read_from_cookie_header(cookie_header, name: Auth::SessionCookies::ACCESS_COOKIE).present? ||
+      Auth::SessionCookies.read_from_cookie_header(cookie_header, name: Auth::SessionCookies::REFRESH_COOKIE).present?
   end
 end

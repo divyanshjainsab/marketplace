@@ -19,9 +19,14 @@ module Api
         end
 
         def set_current_organization!
-          org_id = Current.org_id.to_i
-          organization = Rails.cache.fetch("org:by_id:#{org_id}", expires_in: 60) do
-            Organization.kept.find_by(id: org_id)
+          organization = Current.organization
+
+          if organization.nil?
+            org_id = Current.org_id.to_i
+            org_id = Current.session_org_id.to_i if org_id <= 0 && Current.session_org_id.present?
+            organization = Rails.cache.fetch("org:by_id:#{org_id}", expires_in: 60) do
+              Organization.kept.find_by(id: org_id)
+            end
           end
 
           if organization.nil?
@@ -30,6 +35,7 @@ module Api
           end
 
           Current.organization = organization
+          Current.org_id = organization.id
         end
 
         def set_current_marketplace!

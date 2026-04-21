@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_04_10_130011) do
+ActiveRecord::Schema[7.1].define(version: 2026_04_20_120010) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "pg_trgm"
@@ -81,26 +81,6 @@ ActiveRecord::Schema[7.1].define(version: 2026_04_10_130011) do
     t.index ["subdomain"], name: "index_marketplaces_on_subdomain", unique: true, where: "(discarded_at IS NULL)"
   end
 
-  create_table "oidc_login_states", force: :cascade do |t|
-    t.string "state", null: false
-    t.string "client_id", null: false
-    t.text "redirect_uri", null: false
-    t.string "code_verifier", null: false
-    t.string "nonce", null: false
-    t.string "app", null: false
-    t.string "return_to"
-    t.string "org_slug"
-    t.string "ip_address"
-    t.string "user_agent"
-    t.datetime "expires_at", null: false
-    t.datetime "used_at"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["expires_at"], name: "index_oidc_login_states_on_expires_at"
-    t.index ["state"], name: "index_oidc_login_states_on_state", unique: true
-    t.index ["used_at"], name: "index_oidc_login_states_on_used_at"
-  end
-
   create_table "organization_memberships", force: :cascade do |t|
     t.bigint "user_id", null: false
     t.bigint "organization_id", null: false
@@ -121,9 +101,17 @@ ActiveRecord::Schema[7.1].define(version: 2026_04_10_130011) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.jsonb "homepage_config", default: {}, null: false
+    t.citext "host"
+    t.integer "port"
+    t.string "subdomain"
+    t.integer "dev_port"
+    t.index ["dev_port"], name: "index_organizations_on_dev_port", unique: true
     t.index ["discarded_at"], name: "index_organizations_on_discarded_at"
     t.index ["homepage_config"], name: "index_organizations_on_homepage_config", using: :gin
+    t.index ["host", "port"], name: "index_organizations_on_host_and_port_active", unique: true, where: "((discarded_at IS NULL) AND (host IS NOT NULL))"
+    t.index ["host"], name: "index_organizations_on_host_active", where: "(discarded_at IS NULL)"
     t.index ["slug"], name: "index_organizations_on_slug", unique: true, where: "(discarded_at IS NULL)"
+    t.index ["subdomain"], name: "index_organizations_on_subdomain", unique: true
   end
 
   create_table "product_types", force: :cascade do |t|
@@ -215,21 +203,6 @@ ActiveRecord::Schema[7.1].define(version: 2026_04_10_130011) do
     t.text "object"
     t.jsonb "object_changes"
     t.jsonb "controller_info"
-    t.index ["created_at"], name: "index_versions_on_created_at"
-    t.index ["item_type", "item_id"], name: "index_versions_on_item_type_and_item_id"
   end
 
-  add_foreign_key "listings", "marketplaces"
-  add_foreign_key "listings", "products"
-  add_foreign_key "listings", "variants"
-  add_foreign_key "marketplace_domains", "marketplaces"
-  add_foreign_key "marketplace_memberships", "marketplaces"
-  add_foreign_key "marketplace_memberships", "users"
-  add_foreign_key "marketplaces", "organizations"
-  add_foreign_key "organization_memberships", "organizations"
-  add_foreign_key "organization_memberships", "users"
-  add_foreign_key "products", "categories"
-  add_foreign_key "products", "product_types"
-  add_foreign_key "user_sessions", "users"
-  add_foreign_key "variants", "products"
 end

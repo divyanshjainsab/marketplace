@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_04_10_180100) do
+ActiveRecord::Schema[7.1].define(version: 2026_04_20_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -119,12 +119,14 @@ ActiveRecord::Schema[7.1].define(version: 2026_04_10_180100) do
     t.integer "consumed_timestep", default: 0, null: false
     t.string "phone_number"
     t.string "avatar_url"
+    t.boolean "super_admin", default: false, null: false
     t.index ["email"], name: "index_users_on_email", unique: true
     t.index ["email_verified"], name: "index_users_on_email_verified"
     t.index ["external_id"], name: "index_users_on_external_id", unique: true
     t.index ["otp_required_for_login"], name: "index_users_on_otp_required_for_login"
     t.index ["phone_number"], name: "index_users_on_phone_number"
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
+    t.index ["super_admin"], name: "index_users_on_super_admin"
     t.index ["unlock_token"], name: "index_users_on_unlock_token", unique: true
   end
 

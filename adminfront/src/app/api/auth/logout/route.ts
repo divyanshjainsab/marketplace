@@ -1,8 +1,20 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { requiredEnv } from "@/lib/env";
 
 const ACCESS_COOKIE = "mp_access";
 const REFRESH_COOKIE = "mp_refresh";
+
+function sessionCookieOptions(overrides: { expires?: Date; maxAge?: number } = {}) {
+  return {
+    httpOnly: true,
+    sameSite: "lax" as const,
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    domain: process.env.BACKEND_SESSION_COOKIE_DOMAIN || undefined,
+    ...overrides,
+  };
+}
 
 export async function POST() {
   const accessToken = cookies().get(ACCESS_COOKIE)?.value ?? null;
@@ -16,31 +28,19 @@ export async function POST() {
     .join("; ");
 
   if (cookieHeader) {
-    await fetch(`${process.env.BACKEND_INTERNAL_URL ?? "http://backend:3000"}/auth/session/logout`, {
+    await fetch(`${requiredEnv("BACKEND_INTERNAL_URL")}/auth/session/logout`, {
       method: "POST",
       headers: {
         Accept: "application/json",
+        "X-Frontend-Proxy": "1",
         Cookie: cookieHeader,
       },
       cache: "no-store",
     }).catch(() => null);
   }
 
-  cookies().set(ACCESS_COOKIE, "", {
-    httpOnly: true,
-    sameSite: "strict",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge: 0,
-  });
-
-  cookies().set(REFRESH_COOKIE, "", {
-    httpOnly: true,
-    sameSite: "strict",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge: 0,
-  });
-
-  return NextResponse.json({ ok: true });
+  const response = NextResponse.json({ ok: true });
+  response.cookies.set(ACCESS_COOKIE, "", sessionCookieOptions({ expires: new Date(0), maxAge: 0 }));
+  response.cookies.set(REFRESH_COOKIE, "", sessionCookieOptions({ expires: new Date(0), maxAge: 0 }));
+  return response;
 }

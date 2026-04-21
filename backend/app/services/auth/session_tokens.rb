@@ -67,29 +67,26 @@ module Auth
     private
 
     def issuer
-      (ENV["BACKEND_SESSION_ISSUER"].presence || ENV["BACKEND_PUBLIC_BASE_URL"].presence || "backend").to_s
+      ENV.fetch("BACKEND_SESSION_ISSUER").to_s
     end
 
     def audience
-      ENV.fetch("BACKEND_SESSION_AUDIENCE", "marketplace")
+      ENV.fetch("BACKEND_SESSION_AUDIENCE")
     end
 
     def default_ttl_seconds
-      (ENV["BACKEND_SESSION_TTL_SECONDS"].presence || 900).to_i # 15 minutes
+      Integer(ENV.fetch("BACKEND_SESSION_TTL_SECONDS"))
     end
 
     def keyring
-      raw = ENV["BACKEND_SESSION_JWT_KEYS"].to_s
-      raw = "dev:dev-backend-session-secret" if raw.blank?
-
-      raw.split(",").map(&:strip).reject(&:blank?).map do |pair|
+      ENV.fetch("BACKEND_SESSION_JWT_KEYS").split(",").map(&:strip).reject(&:blank?).map do |pair|
         kid, secret = pair.split(":", 2)
         [kid.to_s, secret.to_s]
       end.select { |kid, secret| kid.present? && secret.present? }.to_h
     end
 
     def current_kid
-      ENV["BACKEND_SESSION_JWT_CURRENT_KID"].presence || keyring.keys.first
+      ENV.fetch("BACKEND_SESSION_JWT_CURRENT_KID")
     end
 
     def current_secret
@@ -98,15 +95,9 @@ module Auth
 
     def secret_for_kid(kid)
       ring = keyring
-      if kid.present? && ring[kid].present?
-        return ring[kid]
-      end
+      return ring[kid] if kid.present? && ring[kid].present?
 
-      # Backward/compat fallback: try the first configured secret.
-      first = ring.values.first
-      raise JWT::DecodeError, "unknown_kid" if first.blank?
-      first
+      raise JWT::DecodeError, "unknown_kid"
     end
   end
 end
-

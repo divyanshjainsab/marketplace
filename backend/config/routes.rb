@@ -7,7 +7,6 @@ Rails.application.routes.draw do
     post "session/refresh", to: "oidc_sessions#refresh"
     delete "session", to: "oidc_sessions#logout"
     post "session/logout", to: "oidc_sessions#logout"
-    post "sso/claims", to: "sso_claims#create"
   end
 
   namespace :api do
@@ -18,7 +17,7 @@ Rails.application.routes.draw do
         resources :organizations, only: %i[index show]
         resources :marketplaces, only: %i[index show]
         resources :products, only: %i[index]
-        resources :listings, only: %i[index]
+        resources :listings, only: %i[index create update destroy]
         resources :categories, only: %i[index]
         resources :product_types, only: %i[index]
         resource :site_editor, only: %i[show update]
@@ -35,6 +34,7 @@ Rails.application.routes.draw do
       resources :variants
       resources :listings
       get :session, to: "sessions#show"
+      get :me, to: "sessions#show"
       get :homepage, to: "homepages#show"
     end
   end

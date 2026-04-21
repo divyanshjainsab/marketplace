@@ -85,12 +85,7 @@ module Auth
     end
 
     def store_login_context!
-      org_slug = params[:org_slug].to_s.presence
-      if org_slug.present?
-        session[:login_org_slug] = org_slug
-      else
-        session.delete(:login_org_slug)
-      end
+      # no-op (SSO is identity-only; no org context is stored here)
     end
 
     def redirect_authenticated_user!
@@ -102,10 +97,6 @@ module Auth
       claims = Auth::LoginClaims.for(user: current_user, session: session)
       completion = complete_authenticated_session!(current_user, claims: claims)
       redirect_to completion.redirect_url, allow_other_host: true
-    rescue Auth::LoginClaims::Denied => e
-      sign_out(resource_name)
-      reset_pending_authentication_state!
-      redirect_to login_path, alert: e.message
     end
 
     def complete_login!(user, claims:)
@@ -163,6 +154,7 @@ module Auth
         format.html do
           # The view already renders `resource.errors` inside the card.
           # Avoid duplicating the same message via flash on the same render.
+          flash.clear
           render :new, status: :unprocessable_entity
         end
         format.json do

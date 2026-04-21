@@ -18,8 +18,7 @@ module Oidc
         nonce: nonce,
         email: user.email,
         name: user.name,
-        roles: Array(claims["roles"] || claims[:roles] || []),
-        org_id: claims["org_id"] || claims[:org_id]
+        roles: Array(claims["roles"] || claims[:roles] || [])
       }.compact
 
       key = SigningKey.current
@@ -32,4 +31,3 @@ module Oidc
     end
   end
 end
-

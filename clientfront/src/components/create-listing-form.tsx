@@ -14,7 +14,7 @@ const DEFAULT_FORM = {
   variantName: "",
   variantSku: "",
   priceCents: "",
-  currency: "USD",
+  currency: "INR",
   status: "draft",
 };
 
@@ -237,16 +237,12 @@ export default function CreateListingForm() {
               required
               value={form.priceCents}
               onChange={(event) => updateField("priceCents", event.target.value.replace(/[^\d]/g, ""))}
-              placeholder="Price cents"
+              placeholder="Price in paise"
               className="rounded-2xl border border-stone-200 px-4 py-3 text-sm outline-none focus:border-stone-900"
             />
-            <input
-              required
-              value={form.currency}
-              onChange={(event) => updateField("currency", event.target.value.toUpperCase())}
-              placeholder="Currency"
-              className="rounded-2xl border border-stone-200 px-4 py-3 text-sm outline-none focus:border-stone-900"
-            />
+            <div className="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-stone-700">
+              Currency: INR (₹)
+            </div>
             <select
               value={form.status}
               onChange={(event) => updateField("status", event.target.value)}

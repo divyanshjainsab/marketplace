@@ -1,6 +1,8 @@
 roles:
+  super_admin: 1000
   owner: 100
   admin: 80
+  org_admin: 80
   manager: 50
   staff: 10
-
+  user: 0

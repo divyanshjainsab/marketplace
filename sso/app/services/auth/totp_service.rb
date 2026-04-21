@@ -54,7 +54,7 @@ module Auth
     private
 
     def issuer
-      ENV.fetch("SSO_TOTP_ISSUER", "Marketplace SSO")
+      ENV.fetch("SSO_TOTP_ISSUER")
     end
 
     def normalized(code)

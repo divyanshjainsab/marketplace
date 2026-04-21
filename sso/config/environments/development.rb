@@ -43,8 +43,8 @@ Rails.application.configure do
   config.action_mailer.delivery_method = :letter_opener_web
 
   config.action_mailer.default_url_options = {
-    host: ENV.fetch("SSO_APP_HOST", "localhost"),
-    port: ENV.fetch("SSO_APP_PORT", 3000)
+    host: ENV.fetch("SSO_APP_HOST"),
+    port: ENV.fetch("SSO_APP_PORT")
   }
 
   config.active_job.queue_adapter = :async
@@ -72,6 +72,16 @@ Rails.application.configure do
   config.hosts << "sso"
   config.hosts << "localhost"
   config.hosts << "127.0.0.1"
+
+  if config.respond_to?(:web_console)
+    config.web_console.allowed_ips = [
+      "127.0.0.0/8",
+      "::1",
+      "10.0.0.0/8",
+      "172.16.0.0/12",
+      "192.168.0.0/16"
+    ]
+  end
 
   # Raises error for missing translations.
   # config.i18n.raise_on_missing_translations = true

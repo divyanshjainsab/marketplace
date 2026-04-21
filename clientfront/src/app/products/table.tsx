@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { clientApiFetch } from "@/lib/client-api";
+import { formatInrFromCents } from "@/lib/currency";
 import type { Listing, PaginatedResponse } from "@/lib/types";
 
 export default function ProductsTable() {
@@ -78,7 +79,7 @@ export default function ProductsTable() {
                 <div>
                   <p className="text-xs uppercase tracking-[0.2em] text-stone-400">Price</p>
                   <p className="mt-1 font-medium text-stone-900">
-                    {listing.price_cents ? `${listing.currency ?? "USD"} ${(listing.price_cents / 100).toFixed(2)}` : "Not set"}
+                    {formatInrFromCents(listing.price_cents)}
                   </p>
                 </div>
               </div>

@@ -53,7 +53,6 @@ class Auth::SessionManager
   private
 
   def refresh_ttl_seconds
-    (ENV["BACKEND_REFRESH_TTL_SECONDS"].presence || 30.days.to_i).to_i
+    Integer(ENV.fetch("BACKEND_REFRESH_TTL_SECONDS"))
   end
 end
-

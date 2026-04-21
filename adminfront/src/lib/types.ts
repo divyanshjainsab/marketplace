@@ -22,6 +22,9 @@ export type Marketplace = {
 
 export type SessionResponse = {
   data: {
+    authenticated: boolean;
+    admin_authorized: boolean;
+    tenant_resolved: boolean;
     user: SessionUser | null;
     marketplace: Marketplace | null;
     organization?: Organization | null;
@@ -77,6 +80,15 @@ export type Product = {
   category: Category;
   product_type: ProductType;
   listing_count?: number;
+};
+
+export type ProductSuggestion = {
+  product_id: number;
+  name: string;
+  sku: string;
+  product_type: string | null;
+  category: string | null;
+  metadata: Record<string, unknown>;
 };
 
 export type Listing = {

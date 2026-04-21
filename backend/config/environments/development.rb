@@ -58,6 +58,8 @@ Rails.application.configure do
   config.hosts << "backend"
   config.hosts << "localhost"
   config.hosts << "127.0.0.1"
+  config.hosts << /\A[a-z0-9-]+\.localhost\z/
+  config.hosts << /\A[a-z0-9-]+\.example\.test\z/
 
 
   # Raises error for missing translations.

@@ -32,6 +32,6 @@ class CategoryPolicy < ApplicationPolicy
   end
 
   def effective_marketplace
-    Current.marketplace || ActsAsTenant.current_tenant || Marketplace.kept.find_by(subdomain: ENV["DEFAULT_MARKETPLACE_SUBDOMAIN"])
+    Current.marketplace || ActsAsTenant.current_tenant
   end
 end

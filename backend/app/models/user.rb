@@ -8,4 +8,8 @@ class User < ApplicationRecord
   has_many :marketplaces, through: :marketplace_memberships
 
   validates :external_id, presence: true, uniqueness: { conditions: -> { kept } }
+
+  def super_admin?
+    Array(roles).include?("super_admin")
+  end
 end

@@ -12,7 +12,6 @@ module Middleware
       return @app.call(env) if request.path.start_with?("/auth/oidc/callback/")
       return @app.call(env) if request.path == "/auth/session/refresh"
       return @app.call(env) if request.path == "/auth/session" || request.path == "/auth/session/logout"
-      return @app.call(env) if request.path == "/auth/sso/claims"
       return @app.call(env) if request.options?
 
       token = session_token(request)
@@ -39,9 +38,17 @@ module Middleware
       return unauthorized("unknown_user") if user.nil?
 
       Current.user = user
-      Current.org_id = payload["org_id"]
+      Current.session_org_id = payload["org_id"]
+      Current.session_roles = Array(payload["roles"] || [])
+      if Current.organization.present? &&
+         Current.session_org_id.present? &&
+         !user.super_admin? &&
+         Current.session_org_id.to_i != Current.organization.id
+        return unauthorized("session_org_mismatch")
+      end
       env["app.current_user"] = Current.user
-      env["app.current_org_id"] = Current.org_id
+      env["app.session_org_id"] = Current.session_org_id
+      env["app.session_roles"] = Current.session_roles
       @app.call(env)
     rescue JWT::ExpiredSignature
       unauthorized("expired")
@@ -51,7 +58,8 @@ module Middleware
       # Current is also reset by MarketplaceResolver, but keep this safe even
       # if middleware ordering changes.
       Current.user = nil
-      Current.org_id = nil
+      Current.session_org_id = nil
+      Current.session_roles = nil
     end
 
     private
@@ -69,7 +77,7 @@ module Middleware
     def auth_required?(request)
       return false if public_endpoint?(request)
 
-      ActiveModel::Type::Boolean.new.cast(ENV.fetch("BACKEND_AUTH_REQUIRED", "true"))
+      ActiveModel::Type::Boolean.new.cast(ENV.fetch("BACKEND_AUTH_REQUIRED"))
     end
 
     def public_endpoint?(request)

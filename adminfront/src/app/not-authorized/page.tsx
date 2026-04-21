@@ -11,7 +11,7 @@ export default function NotAuthorizedPage() {
         </p>
         <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
           <Link
-            href="/login"
+            href="/login?manual=1"
             className="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-6 py-3 text-sm font-semibold text-white hover:bg-slate-800"
           >
             Sign in again
@@ -27,4 +27,3 @@ export default function NotAuthorizedPage() {
     </main>
   );
 }
-

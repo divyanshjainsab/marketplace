@@ -3,7 +3,7 @@ module Api
     class PreflightController < ActionController::API
       def options
         origin = request.headers["Origin"].to_s
-        allowed = ENV.fetch("SSO_ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:3004")
+        allowed = ENV.fetch("SSO_ALLOWED_ORIGINS")
           .split(",")
           .map(&:strip)
           .reject(&:blank?)
@@ -22,4 +22,3 @@ module Api
     end
   end
 end
-

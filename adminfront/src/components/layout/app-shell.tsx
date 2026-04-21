@@ -71,7 +71,9 @@ export default function AppShell({ children }: PropsWithChildren) {
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
               <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Access</p>
               <p className="mt-2 text-sm text-slate-300">
-                {session?.user?.roles?.includes("admin") ? "Admin" : "Limited"}
+                {session?.user?.roles?.some((role) => role === "org_admin" || role === "super_admin")
+                  ? "Admin"
+                  : "Limited"}
               </p>
             </div>
           </div>

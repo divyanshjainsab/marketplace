@@ -62,11 +62,11 @@ module Sso
     private
 
     def issuer
-      (ENV["SSO_OIDC_ISSUER"].presence || ENV["SSO_PUBLIC_BASE_URL"].presence || "http://localhost:3002").delete_suffix("/")
+      ENV.fetch("SSO_OIDC_ISSUER").delete_suffix("/")
     end
 
     def jwks_url
-      base = ENV.fetch("SSO_INTERNAL_URL", ENV.fetch("SSO_BASE_URL", "http://sso:3000")).delete_suffix("/")
+      base = ENV.fetch("SSO_BASE_URL").delete_suffix("/")
       "#{base}/jwks.json"
     end
 

@@ -2,20 +2,32 @@ module Api
   module V1
     class SessionsController < BaseController
       def show
-        organization = nil
-        if Current.org_id.present?
-          organization = Rails.cache.fetch("org:by_id:#{Current.org_id}", expires_in: 60) do
-            Organization.kept.find_by(id: Current.org_id)
-          end
-        end
-
         render json: {
-          data: {
-            user: Current.user ? UserSerializer.one(Current.user) : nil,
-            marketplace: Current.marketplace ? MarketplaceSerializer.one(Current.marketplace) : nil,
-            organization: organization ? OrganizationSerializer.one(organization) : nil
-          }
+          data: session_payload
         }
+      end
+
+      private
+
+      def session_payload
+        organization = Current.organization
+        user = Current.user
+
+        {
+          authenticated: user.present?,
+          admin_authorized: admin_authorized?(user, organization),
+          tenant_resolved: organization.present?,
+          user: user ? UserSerializer.one(user) : nil,
+          marketplace: Current.marketplace ? MarketplaceSerializer.one(Current.marketplace) : nil,
+          organization: organization ? OrganizationSerializer.one(organization) : nil
+        }
+      end
+
+      def admin_authorized?(user, organization)
+        return false if user.blank? || organization.blank?
+        return true if user.respond_to?(:super_admin?) && user.super_admin?
+
+        Rbac::Access.new(user).at_least?(resource: organization, role: :admin)
       end
     end
   end

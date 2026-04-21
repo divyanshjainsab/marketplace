@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { ACCESS_COOKIE, REFRESH_COOKIE } from "@/lib/auth-cookies";
+import { requiredEnv } from "@/lib/env";
 
 const TENANT_COOKIE = "af_tenant";
 
@@ -17,11 +18,26 @@ const HOP_BY_HOP_HEADERS = new Set([
 ]);
 
 function backendBaseUrl() {
-  return process.env.BACKEND_INTERNAL_URL ?? "http://backend:3000";
+  return requiredEnv("BACKEND_INTERNAL_URL");
 }
 
 function tenantHeaderValue() {
-  return cookies().get(TENANT_COOKIE)?.value ?? process.env.NEXT_PUBLIC_DEFAULT_TENANT ?? "";
+  return cookies().get(TENANT_COOKIE)?.value ?? null;
+}
+
+function sessionCookieDomain() {
+  return process.env.BACKEND_SESSION_COOKIE_DOMAIN || undefined;
+}
+
+function sessionCookieOptions(overrides: { expires?: Date; maxAge?: number } = {}) {
+  return {
+    httpOnly: true,
+    sameSite: "lax" as const,
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    domain: sessionCookieDomain(),
+    ...overrides,
+  };
 }
 
 async function requestBody(req: NextRequest) {
@@ -39,9 +55,26 @@ async function backendFetch(path: string, req: NextRequest, body?: Uint8Array, c
   const contentType = req.headers.get("content-type");
   if (contentType) headers.set("Content-Type", contentType);
   headers.set("Accept", "application/json");
+  headers.set("X-Frontend-Proxy", "1");
 
-  const tenant = tenantHeaderValue();
-  if (tenant) headers.set("X-Marketplace-Subdomain", tenant);
+  const hostHeader = req.headers.get("host") ?? "";
+  const hostname = hostHeader.split(":")[0].toLowerCase();
+  const isLocalhost = hostname === "localhost" || hostname === "127.0.0.1";
+
+  const forwardedHost = req.headers.get("x-forwarded-host") ?? hostHeader;
+  if (forwardedHost) {
+    headers.set("X-Forwarded-Host", forwardedHost);
+    const forwardedPort = forwardedHost.split(":")[1];
+    if (forwardedPort) headers.set("X-Forwarded-Port", forwardedPort);
+  }
+  const forwardedProto =
+    req.headers.get("x-forwarded-proto") ?? (req.nextUrl.protocol ? req.nextUrl.protocol.replace(":", "") : "");
+  if (forwardedProto) headers.set("X-Forwarded-Proto", forwardedProto);
+
+  if (!isLocalhost) {
+    const tenant = tenantHeaderValue();
+    if (tenant) headers.set("X-Marketplace-Subdomain", tenant);
+  }
   const cookieHeader = cookieOverride ?? req.headers.get("cookie");
   if (cookieHeader) headers.set("Cookie", cookieHeader);
 
@@ -58,6 +91,7 @@ async function refreshSession(req: NextRequest) {
     method: "POST",
     headers: {
       Accept: "application/json",
+      "X-Frontend-Proxy": "1",
       ...(req.headers.get("cookie") ? { Cookie: req.headers.get("cookie") as string } : {}),
     },
     cache: "no-store",
@@ -107,34 +141,20 @@ async function handle(req: NextRequest, params: { path: string[] }) {
 
   if (refreshedTokens) {
     response.cookies.set(ACCESS_COOKIE, refreshedTokens.access_token, {
-      httpOnly: true,
-      sameSite: "strict",
-      secure: process.env.NODE_ENV === "production",
-      path: "/",
+      ...sessionCookieOptions(),
       maxAge: Math.max(refreshedTokens.exp - Math.floor(Date.now() / 1000), 60),
     });
 
     response.cookies.set(REFRESH_COOKIE, refreshedTokens.refresh_token, {
-      httpOnly: true,
-      sameSite: "strict",
-      secure: process.env.NODE_ENV === "production",
-      path: "/",
+      ...sessionCookieOptions(),
       maxAge: Math.max(refreshedTokens.refresh_exp - Math.floor(Date.now() / 1000), 300),
     });
   } else if (upstream.status === 401) {
     response.cookies.set(ACCESS_COOKIE, "", {
-      httpOnly: true,
-      sameSite: "strict",
-      secure: process.env.NODE_ENV === "production",
-      path: "/",
-      maxAge: 0,
+      ...sessionCookieOptions({ expires: new Date(0), maxAge: 0 }),
     });
     response.cookies.set(REFRESH_COOKIE, "", {
-      httpOnly: true,
-      sameSite: "strict",
-      secure: process.env.NODE_ENV === "production",
-      path: "/",
-      maxAge: 0,
+      ...sessionCookieOptions({ expires: new Date(0), maxAge: 0 }),
     });
   }
 

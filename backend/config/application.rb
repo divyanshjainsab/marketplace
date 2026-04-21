@@ -19,8 +19,9 @@ require "action_view/railtie"
 Bundler.require(*Rails.groups)
 
 require_relative "../lib/middleware/marketplace_resolver"
-require_relative "../lib/middleware/current_user_resolver"
+require_relative "../lib/middleware/organization_resolver"
 require_relative "../lib/middleware/jwt_authenticator"
+require_relative "../lib/request_origin"
 
 module Backend
   class Application < Rails::Application
@@ -47,9 +48,9 @@ module Backend
     # Skip views, helpers and assets when generating a new resource.
     config.api_only = true
 
-    # Request-based multi-tenancy (marketplace resolved from the request domain).
-    config.middleware.insert_before 0, Middleware::MarketplaceResolver
+    # Request-based multi-tenancy (organization + marketplace resolved from request origin).
+    config.middleware.insert_before 0, Middleware::OrganizationResolver
+    config.middleware.insert_after Middleware::OrganizationResolver, Middleware::MarketplaceResolver
     config.middleware.insert_after Middleware::MarketplaceResolver, Middleware::JwtAuthenticator
-    config.middleware.insert_after Middleware::JwtAuthenticator, Middleware::CurrentUserResolver
   end
 end

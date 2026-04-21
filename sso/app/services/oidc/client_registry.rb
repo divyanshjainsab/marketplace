@@ -42,18 +42,18 @@ module Oidc
       end
 
       # Development defaults (override via env).
-      backend_base = ENV.fetch("BACKEND_PUBLIC_BASE_URL", "http://localhost:3001").delete_suffix("/")
+      backend_base = ENV.fetch("BACKEND_PUBLIC_BASE_URL").delete_suffix("/")
       {
         "adminfront" => Client.new(
           client_id: "adminfront",
-          client_secret: ENV.fetch("SSO_OIDC_ADMINFRONT_CLIENT_SECRET", "dev-adminfront-secret"),
+          client_secret: ENV.fetch("SSO_OIDC_ADMINFRONT_CLIENT_SECRET"),
           redirect_uris: [
             "#{backend_base}/auth/oidc/callback/admin"
           ]
         ),
         "clientfront" => Client.new(
           client_id: "clientfront",
-          client_secret: ENV.fetch("SSO_OIDC_CLIENTFRONT_CLIENT_SECRET", "dev-clientfront-secret"),
+          client_secret: ENV.fetch("SSO_OIDC_CLIENTFRONT_CLIENT_SECRET"),
           redirect_uris: [
             "#{backend_base}/auth/oidc/callback/clientfront"
           ]
@@ -64,4 +64,3 @@ module Oidc
     end
   end
 end
-

@@ -6,7 +6,6 @@ class ApplicationController < ActionController::Base
   protected
 
   def configure_permitted_parameters
-    devise_parameter_sanitizer.permit(:sign_in, keys: %i[org_slug])
     devise_parameter_sanitizer.permit(:sign_up, keys: %i[name])
     devise_parameter_sanitizer.permit(:account_update, keys: %i[name])
   end
@@ -42,7 +41,6 @@ class ApplicationController < ActionController::Base
   def complete_authenticated_session!(user, claims: {})
     sign_in(:user, user)
     session.delete(:pending_login_claims)
-    session.delete(:login_org_slug)
 
     oidc_request = session.delete(:oidc_authorization_request)
     if oidc_request.is_a?(Hash)

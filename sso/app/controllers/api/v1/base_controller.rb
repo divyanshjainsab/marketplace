@@ -62,7 +62,7 @@ module Api
       end
 
       def allowed_origins
-        ENV.fetch("SSO_ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:3004")
+        ENV.fetch("SSO_ALLOWED_ORIGINS")
           .split(",")
           .map(&:strip)
           .reject(&:blank?)
@@ -70,4 +70,3 @@ module Api
     end
   end
 end
-

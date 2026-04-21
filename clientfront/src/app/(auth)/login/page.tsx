@@ -1,24 +1,53 @@
-import { redirect } from "next/navigation";
+"use client";
 
-type LoginPageProps = {
-  searchParams?: Record<string, string | string[] | undefined>;
-};
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
-function sanitizeReturnTo(raw: unknown): string | null {
-  if (typeof raw !== "string") return null;
-  const value = raw.trim();
-  if (!value) return null;
-  if (!value.startsWith("/")) return null;
-  if (value.startsWith("//")) return null;
+function sanitizeReturnTo(raw: string | null): string {
+  const value = (raw ?? "").trim();
+  if (!value) return "/";
+  if (!value.startsWith("/")) return "/";
+  if (value.startsWith("//")) return "/";
   return value;
 }
 
-export default function LoginPage({ searchParams }: LoginPageProps) {
-  const apiBase = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001").replace(/\/+$/, "");
+export default function LoginPage() {
+  const searchParams = useSearchParams();
+  const [error, setError] = useState<string | null>(null);
 
-  const returnTo = sanitizeReturnTo(searchParams?.return_to) ?? "/";
+  useEffect(() => {
+    try {
+      const apiBase = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "");
+      if (!apiBase) throw new Error("missing NEXT_PUBLIC_API_URL");
+      const returnTo = sanitizeReturnTo(searchParams.get("return_to"));
 
-  redirect(
-    `${apiBase}/auth/oidc/start/clientfront?return_to=${encodeURIComponent(returnTo)}`,
+      const originHost = window.location.hostname;
+      const originPort = window.location.port || "3002";
+      const originScheme = window.location.protocol.replace(":", "");
+
+      const url = new URL(`${apiBase}/auth/oidc/start/clientfront`);
+      url.searchParams.set("return_to", returnTo);
+      url.searchParams.set("origin_host", originHost);
+      url.searchParams.set("origin_port", originPort);
+      url.searchParams.set("origin_scheme", originScheme);
+
+      window.location.assign(url.toString());
+    } catch {
+      setError("Unable to start sign-in. Please refresh and try again.");
+    }
+  }, [searchParams]);
+
+  return (
+    <main className="mx-auto flex min-h-[60vh] max-w-md flex-col items-center justify-center px-6 py-16">
+      <div className="w-full rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h1 className="text-balance text-lg font-semibold text-slate-900">Signing you in</h1>
+        <p className="mt-2 text-sm text-slate-600">Redirecting to SSO.</p>
+        {error ? (
+          <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+            {error}
+          </p>
+        ) : null}
+      </div>
+    </main>
   );
 }

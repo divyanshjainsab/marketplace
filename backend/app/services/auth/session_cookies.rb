@@ -1,7 +1,7 @@
 module Auth
   class SessionCookies
-    ACCESS_COOKIE = ENV.fetch("BACKEND_ACCESS_COOKIE_NAME", "mp_access")
-    REFRESH_COOKIE = ENV.fetch("BACKEND_REFRESH_COOKIE_NAME", "mp_refresh")
+    ACCESS_COOKIE = ENV.fetch("BACKEND_ACCESS_COOKIE_NAME")
+    REFRESH_COOKIE = ENV.fetch("BACKEND_REFRESH_COOKIE_NAME")
 
     def self.set_access!(response:, token:, expires_at:)
       set_cookie!(response: response, name: ACCESS_COOKIE, value: token, expires_at: expires_at)
@@ -12,8 +12,8 @@ module Auth
     end
 
     def self.clear!(response:)
-      set_cookie!(response: response, name: ACCESS_COOKIE, value: "", expires_at: Time.at(0))
-      set_cookie!(response: response, name: REFRESH_COOKIE, value: "", expires_at: Time.at(0))
+      set_cookie!(response: response, name: ACCESS_COOKIE, value: "", expires_at: Time.at(0), max_age: 0)
+      set_cookie!(response: response, name: REFRESH_COOKIE, value: "", expires_at: Time.at(0), max_age: 0)
     end
 
     def self.read_from_cookie_header(cookie_header, name:)
@@ -23,20 +23,32 @@ module Auth
       parsed[name]
     end
 
-    def self.set_cookie!(response:, name:, value:, expires_at:)
+    def self.set_cookie!(response:, name:, value:, expires_at:, max_age: nil)
       response.set_cookie(
         name,
         {
           value: value,
           expires: expires_at,
+          max_age: max_age,
           httponly: true,
-          secure: Rails.env.production?,
-          same_site: :strict,
+          secure: secure_cookie?,
+          same_site: same_site_value,
           path: "/",
           domain: ENV["BACKEND_SESSION_COOKIE_DOMAIN"].presence
         }.compact
       )
     end
+
+    def self.same_site_value
+      value = ENV.fetch("BACKEND_SESSION_COOKIE_SAME_SITE", "lax").to_s.downcase
+      return :strict if value == "strict"
+      return :none if value == "none"
+
+      :lax
+    end
+
+    def self.secure_cookie?
+      Rails.env.production? || same_site_value == :none
+    end
   end
 end
-

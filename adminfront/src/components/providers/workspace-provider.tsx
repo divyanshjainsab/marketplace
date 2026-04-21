@@ -30,11 +30,12 @@ export function WorkspaceProvider({ children }: React.PropsWithChildren) {
   const router = useRouter();
   const pathname = usePathname();
 
-  const sessionSwr = useSWR<SessionResponse>("/v1/session", (path: string) => clientApiFetch<SessionResponse>(path));
+  const sessionSwr = useSWR<SessionResponse>("/v1/me", (path: string) => clientApiFetch<SessionResponse>(path));
   const session = sessionSwr.data?.data ?? null;
-
-  const canLoadAdminContext =
-    !!session?.user?.roles?.includes("admin") && !!session.organization?.id;
+  const isAuthenticated = session?.authenticated ?? false;
+  const hasAdminAccess = session?.admin_authorized ?? false;
+  const tenantResolved = session?.tenant_resolved ?? false;
+  const canLoadAdminContext = isAuthenticated && hasAdminAccess && !!session?.organization?.id;
 
   const adminContextSwr = useSWR<AdminContextResponse>(
     canLoadAdminContext ? "/v1/admin/context" : null,
@@ -98,31 +99,31 @@ export function WorkspaceProvider({ children }: React.PropsWithChildren) {
     if (loading) return;
 
     const isAuthRoute = pathname === "/login" || pathname === "/callback" || pathname === "/not-authorized";
-    if (!session?.user) {
+    if (!isAuthenticated) {
       if (isAuthRoute) return;
       const returnTo =
         typeof window === "undefined"
           ? "/dashboard"
           : sanitizeReturnTo(window.location.pathname, window.location.search);
       router.replace(`/login?return_to=${encodeURIComponent(returnTo)}`);
-      router.refresh();
       return;
     }
 
     if (pathname === "/login") {
       router.replace("/dashboard");
-      router.refresh();
       return;
     }
 
-    const hasAdminRole = session.user.roles?.includes("admin");
-    const org = session.organization ?? null;
-    if (!hasAdminRole || !org) {
+    if (!hasAdminAccess || !tenantResolved || !session?.organization) {
       if (pathname === "/not-authorized") return;
       router.replace("/not-authorized");
-      router.refresh();
+      return;
     }
-  }, [loading, pathname, router, session?.organization, session?.user]);
+
+    if (pathname === "/not-authorized") {
+      router.replace("/dashboard");
+    }
+  }, [hasAdminAccess, isAuthenticated, loading, pathname, router, session?.organization, tenantResolved]);
 
   const value = useMemo(
     () => ({

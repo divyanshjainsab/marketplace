@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { clientApiFetch } from "@/lib/client-api";
+import { formatInrFromCents } from "@/lib/currency";
 import type { Category, Listing, PaginatedResponse, ProductType } from "@/lib/types";
 
 type DashboardData = {
@@ -75,7 +76,7 @@ export default function DashboardView() {
                     <td className="px-4 py-3 text-stone-600">{listing.variant.name}</td>
                     <td className="px-4 py-3 text-stone-600">{listing.status ?? "active"}</td>
                     <td className="px-4 py-3 text-stone-900">
-                      {listing.price_cents ? `${listing.currency ?? "USD"} ${(listing.price_cents / 100).toFixed(2)}` : "Not set"}
+                      {formatInrFromCents(listing.price_cents)}
                     </td>
                   </tr>
                 ))}
@@ -103,4 +104,3 @@ export default function DashboardView() {
     </div>
   );
 }
-

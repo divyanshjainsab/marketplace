@@ -62,7 +62,7 @@ Rails.application.configure do
   # "info" includes generic and useful information about system operation, but avoids logging too much
   # information to avoid inadvertent exposure of personally identifiable information (PII). If you
   # want to log everything, set the level to "debug".
-  config.log_level = ENV.fetch("RAILS_LOG_LEVEL", "info")
+  config.log_level = ENV.fetch("RAILS_LOG_LEVEL")
 
   # Use a different cache store in production.
   # config.cache_store = :mem_cache_store
@@ -78,7 +78,7 @@ Rails.application.configure do
   # config.action_mailer.raise_delivery_errors = false
   config.action_mailer.default_url_options = {
     host: ENV.fetch("SSO_APP_HOST"),
-    port: ENV.fetch("SSO_APP_PORT", 443)
+    port: ENV.fetch("SSO_APP_PORT")
   }
 
   # Enable locale fallbacks for I18n (makes lookups for any locale fall back to

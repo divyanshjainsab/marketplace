@@ -13,13 +13,6 @@ module Oidc
         raise Errors::InvalidRequest, "invalid_redirect_uri"
       end
 
-      org_slug = request_params[:org_slug].to_s.presence
-      if org_slug.present?
-        session[:login_org_slug] = org_slug
-      else
-        session.delete(:login_org_slug)
-      end
-
       unless user_signed_in?
         session[:oidc_authorization_request] = request_params.merge(requested_at: Time.current.to_i)
         return redirect_to login_path
@@ -31,8 +24,6 @@ module Oidc
       render json: { error: "invalid_client" }, status: :unauthorized
     rescue Errors::InvalidRequest => e
       handle_authorize_error(e.message)
-    rescue Auth::LoginClaims::Denied => e
-      handle_authorize_error("access_denied", description: e.message)
     end
 
     private
@@ -71,8 +62,7 @@ module Oidc
         state: state,
         nonce: nonce,
         code_challenge: code_challenge,
-        code_challenge_method: method,
-        org_slug: params[:org_slug].to_s.presence
+        code_challenge_method: method
       }.compact
     end
 
@@ -129,4 +119,3 @@ module Oidc
     end
   end
 end
-

@@ -1,6 +1,7 @@
 import "server-only";
 import { getJwt, getRefreshToken, ACCESS_COOKIE, REFRESH_COOKIE } from "@/lib/auth";
 import { getTenant } from "@/lib/tenant";
+import { requiredEnv } from "@/lib/env";
 
 export class ApiError extends Error {
   status: number;
@@ -11,7 +12,7 @@ export class ApiError extends Error {
 }
 
 function backendBaseUrl() {
-  return process.env.BACKEND_INTERNAL_URL ?? "http://backend:3000";
+  return requiredEnv("BACKEND_INTERNAL_URL");
 }
 
 export async function apiFetch<T>(

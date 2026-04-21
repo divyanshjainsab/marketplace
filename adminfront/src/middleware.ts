@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { ACCESS_COOKIE } from "./lib/auth-cookies";
+import { ACCESS_COOKIE, REFRESH_COOKIE } from "./lib/auth-cookies";
 
 const TENANT_COOKIE = "af_tenant";
 
@@ -19,7 +19,7 @@ function extractTenant(hostname: string): string | null {
 export function middleware(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
   const host = req.headers.get("host") ?? "";
-  const tenant = extractTenant(host) ?? process.env.NEXT_PUBLIC_DEFAULT_TENANT ?? null;
+  const tenant = extractTenant(host);
 
   const applyTenantCookie = (res: NextResponse) => {
     if (tenant) {
@@ -28,6 +28,14 @@ export function middleware(req: NextRequest) {
         sameSite: "lax",
         secure: process.env.NODE_ENV === "production",
         path: "/",
+      });
+    } else {
+      res.cookies.set(TENANT_COOKIE, "", {
+        httpOnly: false,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        path: "/",
+        maxAge: 0,
       });
     }
     return res;
@@ -38,27 +46,30 @@ export function middleware(req: NextRequest) {
   if (isNextAsset || isApiRoute) return applyTenantCookie(NextResponse.next());
 
   const isAuthRoute = pathname === "/login" || pathname === "/callback" || pathname === "/not-authorized";
-  const jwt = req.cookies.get(ACCESS_COOKIE)?.value ?? null;
+  const hasSession =
+    (req.cookies.get(ACCESS_COOKIE)?.value ?? "").length > 0 ||
+    (req.cookies.get(REFRESH_COOKIE)?.value ?? "").length > 0;
 
   if (pathname === "/") {
     const url = req.nextUrl.clone();
-    url.pathname = jwt ? "/dashboard" : "/login";
+    url.pathname = hasSession ? "/dashboard" : "/login";
     url.search = "";
     return applyTenantCookie(NextResponse.redirect(url));
   }
 
   if (pathname === "/login") {
-    if (!jwt) return applyTenantCookie(NextResponse.next());
+    if (!hasSession) return applyTenantCookie(NextResponse.next());
     const url = req.nextUrl.clone();
     url.pathname = "/dashboard";
     url.search = "";
     return applyTenantCookie(NextResponse.redirect(url));
   }
 
-  if (!jwt && !isAuthRoute) {
+  if (!hasSession && !isAuthRoute) {
     const url = req.nextUrl.clone();
     const returnTo = `${pathname}${search}`;
     url.pathname = "/login";
+    url.search = "";
     url.searchParams.set("return_to", returnTo);
     return applyTenantCookie(NextResponse.redirect(url));
   }
