@@ -11,7 +11,15 @@ module Api
           .includes(:variant, product: %i[product_type category])
           .order(updated_at: :desc)
         scope = scope.where(status: params[:status]) if params[:status].present?
-        scope = scope.joins(:product).merge(Product.suggest(params[:q])) if params[:q].present?
+        scope = scope.where(product_id: params[:product_id]) if params[:product_id].present?
+        scope = scope.where(variant_id: params[:variant_id]) if params[:variant_id].present?
+
+        if params[:category_id].present? || params[:product_type_id].present? || params[:q].present?
+          scope = scope.joins(:product)
+          scope = scope.where(products: { category_id: params[:category_id] }) if params[:category_id].present?
+          scope = scope.where(products: { product_type_id: params[:product_type_id] }) if params[:product_type_id].present?
+          scope = scope.merge(Product.suggest(params[:q])) if params[:q].present?
+        end
 
         page = paginate(scope)
         render_collection(page, serializer: ListingSerializer)
@@ -52,7 +60,8 @@ module Api
 
       def update
         authorize @listing
-        @listing.update!(listing_update_params)
+        @listing.update!(listing_record_attributes)
+        attach_listing_image_if_present(@listing)
         render_resource(@listing, serializer: ListingSerializer)
       end
 
@@ -78,10 +87,25 @@ module Api
           :reuse_product_id,
           :force_create,
           :price_cents,
+          :inventory_count,
           :currency,
           :status,
-          product: %i[product_type_id category_id name sku image],
-          variant: %i[name sku image],
+          :image,
+          image_data: %i[public_id optimized_url version width height],
+          product: [
+            :product_type_id,
+            :category_id,
+            :name,
+            :sku,
+            :image,
+            { image_data: %i[public_id optimized_url version width height] }
+          ],
+          variant: [
+            :name,
+            :sku,
+            :image,
+            { image_data: %i[public_id optimized_url version width height] }
+          ],
           product_metadata: {},
           variant_options: {}
         )
@@ -97,7 +121,56 @@ module Api
       end
 
       def listing_update_params
-        params.require(:listing).permit(:price_cents, :currency, :status)
+        params.require(:listing).permit(
+          :price_cents,
+          :inventory_count,
+          :currency,
+          :status,
+          :image,
+          image_data: %i[public_id optimized_url version width height]
+        )
+      end
+
+      def listing_record_attributes
+        listing_update_params.except(:image, :image_data)
+      end
+
+      def attach_listing_image_if_present(listing)
+        organization = Current.organization || Current.marketplace&.organization
+        raise Images::ImageUploader::InvalidUploadError, "Organization context is required for media uploads" if organization.nil?
+
+        folder = Images::FolderPath.for(
+          target: :listing,
+          organization: organization,
+          marketplace: Current.marketplace
+        )
+        tags = Images::FolderPath.tags(
+          target: :listing,
+          organization: organization,
+          marketplace: Current.marketplace
+        )
+
+        image = listing_update_params[:image]
+        if image.present?
+          Images::ImageAttachment.attach_upload(
+            record: listing,
+            uploaded_file: image,
+            folder: folder,
+            tags: tags,
+            delete_old: true
+          )
+          return
+        end
+
+        image_data = listing_update_params[:image_data]
+        return if image_data.blank?
+
+        Images::ImageAttachment.replace(
+          record: listing,
+          asset_payload: image_data,
+          folder_prefix: folder,
+          delete_old: true
+        )
       end
 
       def status_for_create_or_reuse(status)

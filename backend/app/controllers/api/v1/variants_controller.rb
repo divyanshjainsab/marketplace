@@ -21,9 +21,10 @@ module Api
       end
 
       def create
+        product = policy_scope(Product).find(variant_params[:product_id])
         variant = Variants::CreateOrReuse.call(
-          product_id: variant_params[:product_id],
-          attrs: variant_params.except(:image)
+          product: product,
+          attrs: variant_params.except(:image, :image_data)
         ).variant
         authorize variant
         attach_image_if_present(variant)
@@ -48,22 +49,46 @@ module Api
       private
 
       def set_variant
-        @variant = Variant.kept.includes(product: %i[product_type category]).find(params[:id])
+        @variant = policy_scope(Variant).includes(product: %i[product_type category]).find(params[:id])
       end
 
       def variant_params
-        params.require(:variant).permit(:product_id, :name, :sku, :image, options: {})
+        params.require(:variant).permit(
+          :product_id,
+          :name,
+          :sku,
+          :image,
+          image_data: %i[public_id optimized_url version width height],
+          options: {}
+        )
       end
 
       def attach_image_if_present(variant)
-        image = variant_params[:image]
-        return if image.blank?
+        organization = Current.organization || Current.marketplace&.organization
+        raise Images::ImageUploader::InvalidUploadError, "Organization context is required for media uploads" if organization.nil?
 
-        Images::ImageUploader.attach(
+        folder = Images::FolderPath.for(target: :variant, organization: organization)
+        tags = Images::FolderPath.tags(target: :variant, organization: organization)
+
+        image = variant_params[:image]
+        if image.present?
+          Images::ImageAttachment.attach_upload(
+            record: variant,
+            uploaded_file: image,
+            folder: folder,
+            tags: tags,
+            delete_old: true
+          )
+          return
+        end
+
+        image_data = variant_params[:image_data]
+        return if image_data.blank?
+
+        Images::ImageAttachment.replace(
           record: variant,
-          io: image.tempfile,
-          filename: image.original_filename,
-          folder: "variants",
+          asset_payload: image_data,
+          folder_prefix: folder,
           delete_old: true
         )
       end

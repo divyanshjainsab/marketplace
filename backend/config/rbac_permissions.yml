@@ -1,0 +1,84 @@
+roles:
+  super_admin:
+    - manage_organization
+    - manage_marketplace
+    - view_dashboard
+    - view_products
+    - edit_products
+    - view_listings
+    - edit_listings
+    - view_categories
+    - edit_categories
+    - view_product_types
+    - edit_product_types
+    - view_organization_users
+    - edit_organization_users
+    - view_market_places
+    - edit_market_places
+  owner:
+    - manage_organization
+    - manage_marketplace
+    - view_dashboard
+    - view_products
+    - edit_products
+    - view_listings
+    - edit_listings
+    - view_categories
+    - edit_categories
+    - view_product_types
+    - edit_product_types
+    - view_organization_users
+    - edit_organization_users
+    - view_market_places
+    - edit_market_places
+  admin:
+    - manage_organization
+    - manage_marketplace
+    - view_dashboard
+    - view_products
+    - edit_products
+    - view_listings
+    - edit_listings
+    - view_categories
+    - edit_categories
+    - view_product_types
+    - edit_product_types
+    - view_organization_users
+    - edit_organization_users
+    - view_market_places
+    - edit_market_places
+  org_admin:
+    - manage_organization
+    - manage_marketplace
+    - view_dashboard
+    - view_products
+    - edit_products
+    - view_listings
+    - edit_listings
+    - view_categories
+    - edit_categories
+    - view_product_types
+    - edit_product_types
+    - view_organization_users
+    - edit_organization_users
+    - view_market_places
+    - edit_market_places
+  manager:
+    - view_dashboard
+    - view_products
+    - edit_products
+    - view_listings
+    - edit_listings
+    - view_categories
+    - edit_categories
+    - view_product_types
+    - edit_product_types
+    - view_market_places
+  staff:
+    - view_dashboard
+    - view_products
+    - view_listings
+    - view_categories
+    - view_product_types
+    - view_market_places
+  user: []

@@ -5,7 +5,8 @@ import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export function SettingsScreen() {
-  const { session, adminContext, activeMarketplace, loading } = useWorkspace();
+  const { session, adminContext, activeOrganization, activeMarketplace, currentRole, permissions, loading } =
+    useWorkspace();
 
   return (
     <div className="space-y-5">
@@ -25,8 +26,8 @@ export function SettingsScreen() {
             </div>
           ) : (
             <div className="mt-3 space-y-1 text-sm text-slate-700">
-              <p className="font-semibold text-slate-950">{adminContext?.organization?.name ?? session?.organization?.name}</p>
-              <p className="text-xs text-slate-500">Slug: {adminContext?.organization?.slug ?? session?.organization?.slug}</p>
+              <p className="font-semibold text-slate-950">{activeOrganization?.name ?? adminContext?.organization?.name ?? session?.organization?.name}</p>
+              <p className="text-xs text-slate-500">Slug: {activeOrganization?.slug ?? adminContext?.organization?.slug ?? session?.organization?.slug}</p>
             </div>
           )}
         </Card>
@@ -42,7 +43,8 @@ export function SettingsScreen() {
             <div className="mt-3 space-y-1 text-sm text-slate-700">
               <p className="font-semibold text-slate-950">{session?.user?.name ?? "Admin"}</p>
               <p className="text-xs text-slate-500">{session?.user?.email}</p>
-              <p className="text-xs text-slate-500">Roles: {(session?.user?.roles ?? []).join(", ") || "none"}</p>
+              <p className="text-xs text-slate-500">Role: {currentRole ?? "none"}</p>
+              <p className="text-xs text-slate-500">Permissions: {permissions.join(", ") || "none"}</p>
             </div>
           )}
         </Card>
@@ -55,8 +57,7 @@ export function SettingsScreen() {
             <thead className="bg-slate-50 text-slate-500">
               <tr>
                 <th className="px-4 py-3 font-medium">Name</th>
-                <th className="px-4 py-3 font-medium">Subdomain</th>
-                <th className="px-4 py-3 font-medium">Custom domain</th>
+                <th className="px-4 py-3 font-medium">Domain</th>
                 <th className="px-4 py-3 font-medium">Active</th>
               </tr>
             </thead>
@@ -66,9 +67,6 @@ export function SettingsScreen() {
                   <tr key={idx}>
                     <td className="px-4 py-3">
                       <Skeleton className="h-4 w-40" />
-                    </td>
-                    <td className="px-4 py-3">
-                      <Skeleton className="h-4 w-24" />
                     </td>
                     <td className="px-4 py-3">
                       <Skeleton className="h-4 w-48" />
@@ -82,14 +80,13 @@ export function SettingsScreen() {
                 adminContext!.marketplaces.map((mkt) => (
                   <tr key={mkt.id}>
                     <td className="px-4 py-3 font-medium text-slate-900">{mkt.name}</td>
-                    <td className="px-4 py-3 text-slate-600">{mkt.subdomain}</td>
-                    <td className="px-4 py-3 text-slate-600">{mkt.custom_domain ?? "—"}</td>
+                    <td className="px-4 py-3 text-slate-600">{mkt.custom_domain}</td>
                     <td className="px-4 py-3 text-slate-600">{activeMarketplace?.id === mkt.id ? "Yes" : ""}</td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={4} className="px-4 py-10 text-center text-sm text-slate-600">
+                  <td colSpan={3} className="px-4 py-10 text-center text-sm text-slate-600">
                     No marketplaces configured.
                   </td>
                 </tr>

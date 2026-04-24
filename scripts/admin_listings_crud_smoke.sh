@@ -6,7 +6,8 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BACKEND_BASE="${BACKEND_BASE:-http://localhost:3015}"
 SSO_BASE="${SSO_BASE:-http://localhost:3001}"
 ADMINFRONT_BASE="${ADMINFRONT_BASE:-http://localhost:3000}"
-ADMINFRONT_B_BASE="${ADMINFRONT_B_BASE:-http://localhost:3003}"
+ADMINFRONT_B_BASE="${ADMINFRONT_B_BASE:-http://localhost:3000}"
+ADMINFRONT_B_PORT="${ADMINFRONT_B_PORT:-3000}"
 PASSWORD="${SEED_PASSWORD:-Password123!}"
 
 tmpdir="$(mktemp -d)"
@@ -117,14 +118,14 @@ jar_admin="$tmpdir/adminA.cookies"
 jar_admin_b="$tmpdir/adminB.cookies"
 
 login_via_oidc "adminA@test.com" "localhost" "3000" "$jar_admin" "$ADMINFRONT_BASE"
-login_via_oidc "adminB@test.com" "localhost" "3003" "$jar_admin_b" "$ADMINFRONT_B_BASE"
+login_via_oidc "adminB@test.com" "localhost" "$ADMINFRONT_B_PORT" "$jar_admin_b" "$ADMINFRONT_B_BASE"
 
 ctx_a="$(fetch_json "${BACKEND_BASE}/api/v1/admin/context" "$jar_admin" "localhost:3000")"
 marketplace_a_id="$(printf "%s" "$ctx_a" | json_get "data.marketplaces.0.id")"
-ctx_b="$(fetch_json "${BACKEND_BASE}/api/v1/admin/context" "$jar_admin_b" "localhost:3003")"
+ctx_b="$(fetch_json "${BACKEND_BASE}/api/v1/admin/context" "$jar_admin_b" "localhost:${ADMINFRONT_B_PORT}")"
 marketplace_b_id="$(printf "%s" "$ctx_b" | json_get "data.marketplaces.0.id")"
-category_id="$(fetch_json "${BACKEND_BASE}/api/v1/categories?per_page=1" "$jar_admin" "localhost:3000" | json_get "data.0.id")"
-product_type_id="$(fetch_json "${BACKEND_BASE}/api/v1/product_types?per_page=1" "$jar_admin" "localhost:3000" | json_get "data.0.id")"
+category_id="$(fetch_json "${BACKEND_BASE}/api/v1/admin/categories?marketplace_id=${marketplace_a_id}&per_page=1" "$jar_admin" "localhost:3000" | json_get "data.0.id")"
+product_type_id="$(fetch_json "${BACKEND_BASE}/api/v1/admin/product_types?marketplace_id=${marketplace_a_id}&per_page=1" "$jar_admin" "localhost:3000" | json_get "data.0.id")"
 
 if [[ -z "$category_id" || -z "$product_type_id" ]]; then
   echo "Missing category or product type seed data" >&2
@@ -187,7 +188,7 @@ fi
 echo "-- Verify listing visible only in org-a"
 listings_a="$(fetch_json "${BACKEND_BASE}/api/v1/admin/listings?marketplace_id=${marketplace_a_id}&per_page=100" "$jar_admin" "localhost:3000")"
 assert_contains "$listings_a" "$product_sku"
-listings_b="$(fetch_json "${BACKEND_BASE}/api/v1/admin/listings?marketplace_id=${marketplace_b_id}&per_page=100" "$jar_admin_b" "localhost:3003")"
+listings_b="$(fetch_json "${BACKEND_BASE}/api/v1/admin/listings?marketplace_id=${marketplace_b_id}&per_page=100" "$jar_admin_b" "localhost:${ADMINFRONT_B_PORT}")"
 assert_not_contains "$listings_b" "$product_sku"
 
 echo "-- Update listing price and status"

@@ -3,8 +3,8 @@ module Api
     module Admin
       class BaseController < Api::V1::BaseController
         before_action :require_authenticated_user!
-        before_action :require_admin!
         before_action :set_current_organization!
+        before_action :require_admin_console_access!
         before_action :set_current_marketplace!
         after_action :reset_current_marketplace
 
@@ -19,15 +19,8 @@ module Api
         end
 
         def set_current_organization!
-          organization = Current.organization
-
-          if organization.nil?
-            org_id = Current.org_id.to_i
-            org_id = Current.session_org_id.to_i if org_id <= 0 && Current.session_org_id.present?
-            organization = Rails.cache.fetch("org:by_id:#{org_id}", expires_in: 60) do
-              Organization.kept.find_by(id: org_id)
-            end
-          end
+          organization = selected_organization
+          return if performed?
 
           if organization.nil?
             render_error("forbidden", status: :forbidden)
@@ -36,6 +29,32 @@ module Api
 
           Current.organization = organization
           Current.org_id = organization.id
+        end
+
+        def require_admin_console_access!
+          return if admin_access.admin_console_access?(current_organization)
+
+          render_error("forbidden", status: :forbidden)
+        end
+
+        def require_admin_permission!(*codes)
+          normalized_codes = codes.flatten.compact.map(&:to_s).reject(&:blank?).uniq
+          return if normalized_codes.empty?
+          return if current_authenticated_user&.respond_to?(:super_admin?) && current_authenticated_user.super_admin?
+          return if normalized_codes.any? { |code| current_permissions.include?(code) }
+
+          render_error("forbidden", status: :forbidden)
+        end
+
+        def current_permissions
+          @current_permissions ||= Rbac::Permissions.codes_for(
+            user: current_authenticated_user,
+            organization: current_organization
+          )
+        end
+
+        def current_role
+          @current_role ||= admin_access.role_for(current_organization)
         end
 
         def set_current_marketplace!
@@ -61,6 +80,40 @@ module Api
         def reset_current_marketplace
           ActsAsTenant.current_tenant = nil
           Current.marketplace = nil
+        end
+
+        def available_organizations
+          @available_organizations ||= admin_access.admin_console_organizations_scope
+        end
+
+        def admin_access
+          @admin_access ||= Rbac::Access.new(Current.user)
+        end
+
+        def selected_organization
+          selected_id = params[:selected_organization_id].presence || request.get_header("HTTP_X_ORGANIZATION").presence
+
+          if selected_id.present?
+            return available_organizations.find_by(id: selected_id).tap do |organization|
+              render_error("forbidden", status: :forbidden) if organization.nil?
+            end
+          end
+
+          if Current.organization.present?
+            if admin_access.admin_console_access?(Current.organization)
+              return Current.organization
+            end
+
+            render_error("forbidden", status: :forbidden)
+            return nil
+          end
+
+          if Current.session_org_id.present?
+            organization = available_organizations.find_by(id: Current.session_org_id)
+            return organization if organization.present?
+          end
+
+          admin_access.default_organization(min_role: :staff, preferred_org_id: Current.session_org_id)
         end
       end
     end

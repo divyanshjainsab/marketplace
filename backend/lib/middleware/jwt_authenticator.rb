@@ -40,7 +40,8 @@ module Middleware
       Current.user = user
       Current.session_org_id = payload["org_id"]
       Current.session_roles = Array(payload["roles"] || [])
-      if Current.organization.present? &&
+      if !request.path.start_with?("/api/v1/admin") &&
+         Current.organization.present? &&
          Current.session_org_id.present? &&
          !user.super_admin? &&
          Current.session_org_id.to_i != Current.organization.id
@@ -55,8 +56,8 @@ module Middleware
     rescue JWT::DecodeError
       unauthorized("invalid_token")
     ensure
-      # Current is also reset by MarketplaceResolver, but keep this safe even
-      # if middleware ordering changes.
+      # Current is reset at the end of the request, but keep this safe even if
+      # ordering changes.
       Current.user = nil
       Current.session_org_id = nil
       Current.session_roles = nil
@@ -83,9 +84,11 @@ module Middleware
     def public_endpoint?(request)
       return false unless request.get?
 
-      request.path.match?(%r{\A/api/v1/(product_types|categories|products|variants|listings)(/\d+)?\z}) ||
-        request.path == "/api/v1/products/suggestions" ||
+      request.path.match?(%r{\A/api/v1/listings(?:/\d+)?\z}) ||
+        request.path == "/api/listings" ||
+        request.path == "/listings" ||
         request.path == "/api/v1/session" ||
+        request.path == "/api/v1/me" ||
         request.path == "/api/v1/homepage"
     end
 

@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Sans } from "next/font/google";
 import "./globals.css";
-import { getTenant } from "@/lib/tenant";
-import { TenantProvider } from "@/components/tenant-provider";
-import { ToastProvider } from "@/components/toast-provider";
+import { AppProviders } from "@/components/app-providers";
 
 const ibmPlexSans = IBM_Plex_Sans({
   subsets: ["latin"],
@@ -11,8 +9,8 @@ const ibmPlexSans = IBM_Plex_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Marketplace Inventory",
-  description: "Tenant-aware inventory and listing operations",
+  title: "Marketplace",
+  description: "Tenant-aware storefront",
 };
 
 export default function RootLayout({
@@ -20,14 +18,10 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const tenant = getTenant();
-
   return (
     <html lang="en">
       <body className={ibmPlexSans.className}>
-        <TenantProvider subdomain={tenant.subdomain}>
-          <ToastProvider>{children}</ToastProvider>
-        </TenantProvider>
+        <AppProviders>{children}</AppProviders>
       </body>
     </html>
   );

@@ -6,7 +6,8 @@ class VariantSerializer < BaseSerializer
       name: record.name,
       sku: record.sku,
       options: record.options,
-      image_url: record.image_url
+      image_url: record.image_url,
+      image: ImageAssetSerializer.one(record.image_asset)
     }
 
     if context[:include_product]

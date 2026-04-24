@@ -1,7 +1,7 @@
 export type TenantInfo = {
   id: number;
   name: string;
-  subdomain: string;
+  custom_domain: string;
   organization_id: number;
 };
 
@@ -30,12 +30,26 @@ export type Category = {
   id: number;
   name: string;
   code: string;
+  parent_id?: number | null;
 };
 
 export type ProductType = {
   id: number;
   name: string;
   code: string;
+};
+
+export type MediaAsset = {
+  public_id: string;
+  optimized_url: string;
+  version: number;
+  width: number;
+  height: number;
+  urls: {
+    thumbnail?: string;
+    medium?: string;
+    full: string;
+  };
 };
 
 export type Variant = {
@@ -45,6 +59,7 @@ export type Variant = {
   sku: string;
   options: Record<string, string>;
   image_url: string | null;
+  image?: MediaAsset | null;
 };
 
 export type Product = {
@@ -53,6 +68,7 @@ export type Product = {
   sku: string;
   metadata: Record<string, string>;
   image_url: string | null;
+  image?: MediaAsset | null;
   category: Category;
   product_type: ProductType;
   variants?: Variant[];
@@ -64,9 +80,35 @@ export type Listing = {
   price_cents: number | null;
   currency: string | null;
   status: string | null;
+  inventory_count: number;
+  image_url?: string | null;
+  image?: MediaAsset | null;
+  image_source?: string | null;
   product: Product;
   variant: Variant;
   updated_at: string;
+};
+
+export type CartItem = {
+  id: number;
+  variant_id: number;
+  quantity: number;
+  unit_price_cents: number | null;
+  currency: string | null;
+  line_total_cents: number | null;
+  inventory_count: number | null;
+  available: boolean;
+  listing: Listing | null;
+};
+
+export type Cart = {
+  id: number;
+  marketplace_id: number;
+  user_id: number | null;
+  session_id: string;
+  item_count: number;
+  subtotal_cents: number;
+  items: CartItem[];
 };
 
 export type ProductSuggestion = {
@@ -91,7 +133,7 @@ export type PaginatedResponse<T> = {
 export type HomepageHeroBanner = {
   title?: string;
   subtitle?: string;
-  image_url?: string;
+  image?: MediaAsset | null;
   cta_text?: string;
   cta_href?: string;
 };
@@ -99,7 +141,7 @@ export type HomepageHeroBanner = {
 export type PromotionalBlock = {
   title: string;
   body?: string;
-  image_url?: string;
+  image?: MediaAsset | null;
   href?: string;
 };
 

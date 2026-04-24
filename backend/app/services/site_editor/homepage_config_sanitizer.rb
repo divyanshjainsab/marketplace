@@ -15,12 +15,13 @@ module SiteEditor
     MAX_TEXT = 600
     MAX_URL = 4096
 
-    def self.call(raw:)
-      new(raw: raw).sanitize
+    def self.call(raw:, organization:)
+      new(raw: raw, organization: organization).sanitize
     end
 
-    def initialize(raw:)
+    def initialize(raw:, organization:)
       @raw = raw
+      @organization = organization
     end
 
     def sanitize
@@ -62,7 +63,7 @@ module SiteEditor
       {
         "title" => sanitize_text(hero["title"], max: 120),
         "subtitle" => sanitize_text(hero["subtitle"], max: 220),
-        "image_url" => sanitize_url(hero["image_url"]),
+        "image" => sanitize_image(hero["image"]),
         "cta_text" => sanitize_text(hero["cta_text"], max: 40),
         "cta_href" => sanitize_href(hero["cta_href"])
       }.compact
@@ -102,7 +103,7 @@ module SiteEditor
         {
           "title" => sanitize_text(block["title"], max: 80),
           "body" => sanitize_text(block["body"], max: MAX_TEXT),
-          "image_url" => sanitize_url(block["image_url"]),
+          "image" => sanitize_image(block["image"]),
           "href" => sanitize_href(block["href"])
         }.compact
       end.reject { |block| block["title"].blank? }
@@ -119,9 +120,17 @@ module SiteEditor
       text = value.to_s.strip
       return nil if text.blank?
       return nil if text.length > MAX_URL
-      return nil unless text.start_with?("http://", "https://")
+      return nil unless text.start_with?("https://")
+      return nil unless Images::Delivery.cloudinary_url?(text)
 
       text
+    end
+
+    def sanitize_image(value)
+      asset = Images::AssetPayload.normalize(payload: value, folder_prefix: site_editor_folder_prefix)
+      return nil if asset.nil?
+
+      Images::Delivery.asset(**asset)
     end
 
     def sanitize_href(value)
@@ -133,6 +142,9 @@ module SiteEditor
 
       nil
     end
+
+    def site_editor_folder_prefix
+      @site_editor_folder_prefix ||= Images::FolderPath.for(target: :site_editor, organization: @organization)
+    end
   end
 end
-

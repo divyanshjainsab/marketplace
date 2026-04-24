@@ -25,6 +25,45 @@ module Rbac
         .distinct
     end
 
+    def admin_console_organizations_scope(min_role: :staff)
+      return Organization.none if user.nil?
+      return Organization.kept if super_admin?
+
+      min_rank = Registry.rank_for(min_role)
+      allowed_ids = OrganizationMembership.kept
+        .where(user_id: user.id)
+        .pluck(:organization_id, :role)
+        .filter_map do |organization_id, role_name|
+          organization_id if Registry.rank_for(role_name) >= min_rank
+        end
+        .uniq
+
+      Organization.kept.where(id: allowed_ids)
+    end
+
+    def admin_console_access?(organization = nil, min_role: :staff)
+      return false if user.nil?
+      return true if super_admin?
+
+      if organization.present?
+        return rank_for(organization) >= Registry.rank_for(min_role)
+      end
+
+      admin_console_organizations_scope(min_role: min_role).exists?
+    end
+
+    def default_organization(min_role: :staff, preferred_org_id: nil)
+      scope = admin_console_organizations_scope(min_role: min_role)
+      return nil unless scope.exists?
+
+      if preferred_org_id.present?
+        preferred = scope.find_by(id: preferred_org_id)
+        return preferred if preferred.present?
+      end
+
+      scope.order(:name, :id).first
+    end
+
     def marketplaces_scope
       return Marketplace.none if user.nil?
       return Marketplace.kept if super_admin?

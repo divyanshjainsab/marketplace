@@ -40,9 +40,16 @@ seed_user!(
   name: "Normal User"
 )
 
+seed_user!(
+  external_id: "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee",
+  email: "staff@test.com",
+  name: "Staff User"
+)
+
 puts "Seeded SSO users:"
 puts "- superadmin@test.com (Super Admin)"
 puts "- adminA@test.com (Org Admin A)"
 puts "- adminB@test.com (Org Admin B)"
 puts "- user@test.com (Normal User)"
+puts "- staff@test.com (Staff User)"
 puts "Password for all seeded users: #{SEED_PASSWORD}"

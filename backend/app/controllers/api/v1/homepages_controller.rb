@@ -11,24 +11,37 @@ module Api
           organization.homepage_config || {}
         end
 
-        config = SiteEditor::HomepageConfigSanitizer.call(raw: raw_config)
+        config = SiteEditor::HomepageConfigSanitizer.call(raw: raw_config, organization: organization)
 
         featured_products = resolve_products(config["featured_products"])
         featured_listings = resolve_listings(marketplace, config["featured_listings"])
         featured_categories = resolve_categories(config["categories"])
 
-        render json: {
-          data: {
-            organization: OrganizationSerializer.one(organization),
-            marketplace: MarketplaceSerializer.one(marketplace),
-            homepage_config: config,
-            resolved: {
-              featured_products: featured_products.map { |p| ProductSerializer.one(p) },
-              featured_listings: featured_listings.map { |l| ListingSerializer.one(l) },
-              categories: featured_categories.map { |c| CategorySerializer.one(c) }
+        response.headers["Vary"] = "Host, X-Forwarded-Host, X-Forwarded-Port"
+        if stale?(
+          etag: [
+            organization.cache_key_with_version,
+            marketplace.cache_key_with_version,
+            config
+          ],
+          last_modified: [organization.updated_at, marketplace.updated_at].compact.max,
+          public: true
+        )
+          expires_in 60, public: true, stale_while_revalidate: 30
+
+          render json: {
+            data: {
+              organization: OrganizationSerializer.one(organization),
+              marketplace: MarketplaceSerializer.one(marketplace),
+              homepage_config: config,
+              resolved: {
+                featured_products: featured_products.map { |p| ProductSerializer.one(p) },
+                featured_listings: featured_listings.map { |l| ListingSerializer.one(l) },
+                categories: featured_categories.map { |c| CategorySerializer.one(c) }
+              }
             }
           }
-        }
+        end
       end
 
       private
@@ -41,7 +54,13 @@ module Api
         ids = Array(ids).map(&:to_i).select(&:positive?).uniq
         return [] if ids.empty?
 
-        products = Product.kept.where(id: ids).includes(:category, :product_type).to_a
+        products = Product.kept
+          .joins(:listings)
+          .merge(Listing.kept.where(marketplace_id: Current.marketplace.id))
+          .where(id: ids)
+          .includes(:category, :product_type)
+          .distinct
+          .to_a
         products.sort_by { |p| ids.index(p.id) || ids.length }
       end
 
@@ -57,10 +76,15 @@ module Api
         codes = Array(codes).map { |c| c.to_s.strip }.reject(&:blank?).uniq
         return [] if codes.empty?
 
-        categories = Category.kept.where(code: codes).order(:name).to_a
+        categories = Category.kept
+          .joins(products: :listings)
+          .merge(Listing.kept.where(marketplace_id: Current.marketplace.id))
+          .where(code: codes)
+          .distinct
+          .order(:name)
+          .to_a
         categories.sort_by { |c| codes.index(c.code) || codes.length }
       end
     end
   end
 end
-

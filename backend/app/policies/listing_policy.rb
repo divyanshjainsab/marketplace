@@ -21,10 +21,9 @@ class ListingPolicy < ApplicationPolicy
 
   class Scope < Scope
     def resolve
-      return scope.kept if user.nil?
       return scope.none if Current.marketplace.nil?
 
-      scope.kept
+      scope.kept.where(marketplace_id: Current.marketplace.id)
     end
   end
 

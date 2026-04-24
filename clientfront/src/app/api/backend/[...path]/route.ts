@@ -19,10 +19,6 @@ function backendBaseUrl() {
   return requiredEnv("BACKEND_INTERNAL_URL");
 }
 
-function tenantHeaderValue() {
-  return cookies().get("cf_tenant")?.value ?? requiredEnv("NEXT_PUBLIC_DEFAULT_TENANT");
-}
-
 function sessionCookieDomain() {
   return process.env.BACKEND_SESSION_COOKIE_DOMAIN || undefined;
 }
@@ -56,8 +52,6 @@ async function backendFetch(path: string, req: NextRequest, body?: Uint8Array, c
   headers.set("X-Frontend-Proxy", "1");
 
   const hostHeader = req.headers.get("host") ?? "";
-  const hostname = hostHeader.split(":")[0].toLowerCase();
-  const isLocalhost = hostname === "localhost" || hostname === "127.0.0.1";
 
   const forwardedHost = req.headers.get("x-forwarded-host") ?? hostHeader;
   if (forwardedHost) {
@@ -69,10 +63,6 @@ async function backendFetch(path: string, req: NextRequest, body?: Uint8Array, c
     req.headers.get("x-forwarded-proto") ?? (req.nextUrl.protocol ? req.nextUrl.protocol.replace(":", "") : "");
   if (forwardedProto) headers.set("X-Forwarded-Proto", forwardedProto);
 
-  if (!isLocalhost) {
-    const tenant = tenantHeaderValue();
-    if (tenant) headers.set("X-Marketplace-Subdomain", tenant);
-  }
   const cookieHeader = cookieOverride ?? req.headers.get("cookie");
   if (cookieHeader) headers.set("Cookie", cookieHeader);
 

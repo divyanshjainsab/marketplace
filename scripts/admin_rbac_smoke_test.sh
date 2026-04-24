@@ -6,7 +6,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BACKEND_BASE="${BACKEND_BASE:-http://localhost:3015}"
 SSO_BASE="${SSO_BASE:-http://localhost:3001}"
 ADMINFRONT_BASE="${ADMINFRONT_BASE:-http://localhost:3000}"
-ADMINFRONT_B_BASE="${ADMINFRONT_B_BASE:-http://localhost:3003}"
+ADMINFRONT_B_BASE="${ADMINFRONT_B_BASE:-http://localhost:3000}"
 PASSWORD="${SEED_PASSWORD:-Password123!}"
 
 tmpdir="$(mktemp -d)"
@@ -165,6 +165,7 @@ jar_super="$tmpdir/super.cookies"
 jar_a="$tmpdir/adminA.cookies"
 jar_b="$tmpdir/adminB.cookies"
 jar_user="$tmpdir/user.cookies"
+jar_staff="$tmpdir/staff.cookies"
 jar_a_denied="$tmpdir/adminA_denied.cookies"
 jar_b_denied="$tmpdir/adminB_denied.cookies"
 jar_user_denied="$tmpdir/user_denied.cookies"
@@ -173,18 +174,31 @@ echo "-- Super admin: login (org-a)"
 login_via_oidc "superadmin@test.com" "localhost" "3000" "$jar_super" "$ADMINFRONT_BASE"
 assert_http_code "200" "${BACKEND_BASE}/api/v1/admin/context" "$jar_super" "localhost:3000"
 ctx="$(fetch_json "${BACKEND_BASE}/api/v1/admin/context" "$jar_super" "localhost:3000")"
-assert_contains "$ctx" "\"slug\":\"org1\""
+if [[ "$(printf "%s" "$ctx" | json_get "data.organization.slug")" != "org1" ]]; then
+  echo "Expected current organization slug=org1 for super admin" >&2
+  exit 1
+fi
+org_a_id="$(printf "%s" "$ctx" | json_get "data.organization.id")"
+org_b_id="$(printf "%s" "$ctx" | json_get "data.organizations.1.id")"
 mkt_a_id="$(printf "%s" "$ctx" | json_get "data.marketplaces.0.id")"
 
-echo "-- Super admin: switch tenant via port (org-b)"
-ctx="$(fetch_json "${BACKEND_BASE}/api/v1/admin/context" "$jar_super" "localhost:3003")"
-assert_contains "$ctx" "\"slug\":\"org2\""
+echo "-- Super admin: switch organization on a single admin origin"
+ctx="$(fetch_json "${BACKEND_BASE}/api/v1/admin/context?selected_organization_id=${org_b_id}" "$jar_super" "localhost:3000")"
+if [[ "$(printf "%s" "$ctx" | json_get "data.organization.slug")" != "org2" ]]; then
+  echo "Expected current organization slug=org2 for super admin after selected_organization_id switch" >&2
+  exit 1
+fi
 mkt_b_id="$(printf "%s" "$ctx" | json_get "data.marketplaces.0.id")"
+session_payload="$(fetch_json "${BACKEND_BASE}/api/v1/me?selected_organization_id=${org_b_id}" "$jar_super" "localhost:3000")"
+assert_contains "$session_payload" "\"current_organization_id\":${org_b_id}"
 
 echo "-- Org admin A: org-a allowed"
 login_via_oidc "adminA@test.com" "localhost" "3000" "$jar_a" "$ADMINFRONT_BASE"
 ctx="$(fetch_json "${BACKEND_BASE}/api/v1/admin/context" "$jar_a" "localhost:3000")"
-assert_contains "$ctx" "\"slug\":\"org1\""
+if [[ "$(printf "%s" "$ctx" | json_get "data.organization.slug")" != "org1" ]]; then
+  echo "Expected current organization slug=org1 for Org admin A" >&2
+  exit 1
+fi
 listings="$(fetch_json "${BACKEND_BASE}/api/v1/admin/listings" "$jar_a" "localhost:3000")"
 assert_contains "$listings" "ORGA-PRODUCT"
 assert_not_contains "$listings" "ORGB-PRODUCT"
@@ -195,19 +209,34 @@ if [[ "$code" != "404" ]]; then
   exit 1
 fi
 
-echo "-- Org admin A: switch tenant via port (org-b) denied"
-assert_http_code_in "401,403" "${BACKEND_BASE}/api/v1/admin/context" "$jar_a" "localhost:3003"
+echo "-- Org admin A: switch organization via selected_organization_id denied"
+assert_http_code_in "401,403" "${BACKEND_BASE}/api/v1/admin/context?selected_organization_id=${org_b_id}" "$jar_a" "localhost:3000"
 
 echo "-- Org admin B: org-b allowed"
-login_via_oidc "adminB@test.com" "localhost" "3003" "$jar_b" "$ADMINFRONT_B_BASE"
-ctx="$(fetch_json "${BACKEND_BASE}/api/v1/admin/context" "$jar_b" "localhost:3003")"
-assert_contains "$ctx" "\"slug\":\"org2\""
-listings="$(fetch_json "${BACKEND_BASE}/api/v1/admin/listings" "$jar_b" "localhost:3003")"
+login_via_oidc "adminB@test.com" "localhost" "3000" "$jar_b" "$ADMINFRONT_B_BASE"
+ctx="$(fetch_json "${BACKEND_BASE}/api/v1/admin/context" "$jar_b" "localhost:3000")"
+if [[ "$(printf "%s" "$ctx" | json_get "data.organization.slug")" != "org2" ]]; then
+  echo "Expected current organization slug=org2 for Org admin B" >&2
+  exit 1
+fi
+listings="$(fetch_json "${BACKEND_BASE}/api/v1/admin/listings" "$jar_b" "localhost:3000")"
 assert_contains "$listings" "ORGB-PRODUCT"
 assert_not_contains "$listings" "ORGA-PRODUCT"
 
-echo "-- Org admin B: switch tenant via port (org-a) denied"
-assert_http_code_in "401,403" "${BACKEND_BASE}/api/v1/admin/context" "$jar_b" "localhost:3000"
+echo "-- Org admin B: switch organization via selected_organization_id denied"
+assert_http_code_in "401,403" "${BACKEND_BASE}/api/v1/admin/context?selected_organization_id=${org_a_id}" "$jar_b" "localhost:3000"
+
+echo "-- Staff user: org-a read-only admin access"
+login_via_oidc "staff@test.com" "localhost" "3000" "$jar_staff" "$ADMINFRONT_BASE"
+ctx="$(fetch_json "${BACKEND_BASE}/api/v1/admin/context" "$jar_staff" "localhost:3000")"
+assert_contains "$ctx" "\"slug\":\"org1\""
+staff_session="$(fetch_json "${BACKEND_BASE}/api/v1/me?selected_organization_id=${org_a_id}" "$jar_staff" "localhost:3000")"
+assert_contains "$staff_session" "\"current_role\":\"staff\""
+assert_contains "$staff_session" "\"view_listings\""
+assert_not_contains "$staff_session" "\"edit_listings\""
+assert_http_code "200" "${BACKEND_BASE}/api/v1/admin/listings" "$jar_staff" "localhost:3000"
+assert_http_code_in "401,403" "${BACKEND_BASE}/api/v1/admin/site_editor?marketplace_id=${mkt_a_id}" "$jar_staff" "localhost:3000"
+assert_http_code_in "401,403" "${BACKEND_BASE}/api/v1/admin/context?selected_organization_id=${org_b_id}" "$jar_staff" "localhost:3000"
 
 echo "-- Normal user denied"
 if login_via_oidc "user@test.com" "localhost" "3000" "$jar_user_denied" "$ADMINFRONT_BASE"; then

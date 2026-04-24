@@ -2,6 +2,10 @@ module Api
   module V1
     module Admin
       class OrganizationsController < BaseController
+        before_action do
+          require_admin_permission!("manage_organization")
+        end
+
         def index
           render json: {
             data: [OrganizationSerializer.one(current_organization)],

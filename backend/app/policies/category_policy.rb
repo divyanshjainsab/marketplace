@@ -21,7 +21,12 @@ class CategoryPolicy < ApplicationPolicy
 
   class Scope < Scope
     def resolve
+      return scope.none if Current.marketplace.nil?
+
       scope.kept
+        .joins(products: :listings)
+        .merge(Listing.kept.where(marketplace_id: Current.marketplace.id))
+        .distinct
     end
   end
 

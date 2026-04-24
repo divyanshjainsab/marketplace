@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { requiredEnv } from "@/lib/env";
+import { SELECTED_ORGANIZATION_COOKIE } from "@/lib/auth-cookies";
 
 const ACCESS_COOKIE = "mp_access";
 const REFRESH_COOKIE = "mp_refresh";
@@ -42,5 +43,12 @@ export async function POST() {
   const response = NextResponse.json({ ok: true });
   response.cookies.set(ACCESS_COOKIE, "", sessionCookieOptions({ expires: new Date(0), maxAge: 0 }));
   response.cookies.set(REFRESH_COOKIE, "", sessionCookieOptions({ expires: new Date(0), maxAge: 0 }));
+  response.cookies.set(SELECTED_ORGANIZATION_COOKIE, "", {
+    httpOnly: false,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 0,
+  });
   return response;
 }

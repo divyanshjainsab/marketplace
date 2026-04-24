@@ -17,11 +17,14 @@ module RequestOrigin
     if forwarded_host.present?
       parsed_host, parsed_port = split_host_port(forwarded_host)
       host = parsed_host if parsed_host.present?
-      port = parsed_port if parsed_port
+      # If the proxy forwarded a host but omitted a port, prefer X-Forwarded-Port (or nil)
+      # over the internal container port (e.g. 3000).
+      port = parsed_port
     end
 
-    if port.blank? && forwarded_port.present?
-      port = Integer(forwarded_port, 10) rescue port
+    if forwarded_port.present?
+      forwarded_port_i = Integer(forwarded_port, 10) rescue nil
+      port = forwarded_port_i if forwarded_port_i
     end
 
     scheme = forwarded_proto if forwarded_proto.present?

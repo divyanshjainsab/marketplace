@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 import { clientApiFetch } from "@/lib/client-api";
+import { CloudinaryImage } from "@/components/media/cloudinary-image";
+import { MediaUploadField } from "@/components/media/media-upload-field";
 import type { Category, HomepageConfig, Listing, PaginatedResponse, Product, SiteEditorResponse } from "@/lib/types";
 import { useWorkspace } from "@/components/providers/workspace-provider";
 import { useToast } from "@/components/toast-provider";
@@ -205,6 +207,20 @@ export function SiteEditorScreen() {
                   onChange={(e) => updateConfig({ ...config, hero_banner: { ...(config.hero_banner ?? {}), cta_href: e.target.value } })}
                   placeholder="CTA link (e.g. /products)"
                 />
+                <MediaUploadField
+                  label="Hero image"
+                  hint="Uploaded to Cloudinary and stored as versioned media metadata in the homepage config."
+                  target="site_editor"
+                  marketplaceId={activeMarketplaceId}
+                  value={config.hero_banner?.image ?? null}
+                  disabled={saving || loading}
+                  onChange={(asset) =>
+                    updateConfig({
+                      ...config,
+                      hero_banner: { ...(config.hero_banner ?? {}), image: asset ?? undefined },
+                    })
+                  }
+                />
               </div>
             )}
           </Card>
@@ -346,6 +362,19 @@ export function SiteEditorScreen() {
                       }}
                       placeholder="Link (e.g. /products)"
                     />
+                    <MediaUploadField
+                      label={`Promotional image ${idx + 1}`}
+                      hint="CDN-served artwork for this promotional card."
+                      target="site_editor"
+                      marketplaceId={activeMarketplaceId}
+                      value={block.image ?? null}
+                      disabled={saving || loading}
+                      onChange={(asset) => {
+                        const next = [...(config.promotional_blocks ?? [])];
+                        next[idx] = { ...block, image: asset ?? undefined };
+                        updateConfig({ ...config, promotional_blocks: next });
+                      }}
+                    />
                   </div>
                 </div>
               ))}
@@ -375,14 +404,26 @@ export function SiteEditorScreen() {
                 if (section === "hero_banner") {
                   return (
                     <section key={section} className="rounded-3xl border border-slate-200 bg-white p-6">
-                      <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Hero</p>
-                      <h2 className="mt-3 text-2xl font-semibold text-slate-950">{config.hero_banner?.title ?? "Hero title"}</h2>
-                      <p className="mt-2 text-sm text-slate-600">{config.hero_banner?.subtitle ?? ""}</p>
-                      {config.hero_banner?.cta_text ? (
-                        <div className="mt-4 inline-flex rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white">
-                          {config.hero_banner.cta_text}
+                      <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
+                        <div>
+                          <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Hero</p>
+                          <h2 className="mt-3 text-2xl font-semibold text-slate-950">{config.hero_banner?.title ?? "Hero title"}</h2>
+                          <p className="mt-2 text-sm text-slate-600">{config.hero_banner?.subtitle ?? ""}</p>
+                          {config.hero_banner?.cta_text ? (
+                            <div className="mt-4 inline-flex rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white">
+                              {config.hero_banner.cta_text}
+                            </div>
+                          ) : null}
                         </div>
-                      ) : null}
+                        <CloudinaryImage
+                          asset={config.hero_banner?.image}
+                          alt={config.hero_banner?.title ?? "Hero image"}
+                          className="h-52 w-full"
+                          fill
+                          sizes="(min-width: 1024px) 22rem, 100vw"
+                          fallbackLabel="Hero image"
+                        />
+                      </div>
                     </section>
                   );
                 }
@@ -396,9 +437,12 @@ export function SiteEditorScreen() {
                           const product = productById.get(id);
                           if (!product) return null;
                           return (
-                            <div key={id} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                              <p className="text-sm font-semibold text-slate-900">{product.name}</p>
-                              <p className="text-xs text-slate-500">{product.sku}</p>
+                            <div key={id} className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                              <CloudinaryImage asset={product.image} alt={product.name} className="h-14 w-14 shrink-0" sizes="56px" />
+                              <div>
+                                <p className="text-sm font-semibold text-slate-900">{product.name}</p>
+                                <p className="text-xs text-slate-500">{product.sku}</p>
+                              </div>
                             </div>
                           );
                         })}
@@ -419,9 +463,12 @@ export function SiteEditorScreen() {
                           const listing = listingById.get(id);
                           if (!listing) return null;
                           return (
-                            <div key={id} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                              <p className="text-sm font-semibold text-slate-900">{listing.product.name}</p>
-                              <p className="text-xs text-slate-500">{listing.variant.name}</p>
+                            <div key={id} className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                              <CloudinaryImage asset={listing.image} alt={listing.product.name} className="h-14 w-14 shrink-0" sizes="56px" />
+                              <div>
+                                <p className="text-sm font-semibold text-slate-900">{listing.product.name}</p>
+                                <p className="text-xs text-slate-500">{listing.variant.name}</p>
+                              </div>
                             </div>
                           );
                         })}
@@ -457,9 +504,19 @@ export function SiteEditorScreen() {
                       <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Promotions</p>
                       <div className="mt-4 grid gap-3 md:grid-cols-2">
                         {(config.promotional_blocks ?? []).map((block, idx) => (
-                          <div key={idx} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                            <p className="text-sm font-semibold text-slate-900">{block.title}</p>
-                            {block.body ? <p className="mt-1 text-xs text-slate-600">{block.body}</p> : null}
+                          <div key={idx} className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+                            <CloudinaryImage
+                              asset={block.image}
+                              alt={block.title}
+                              className="h-32 w-full"
+                              fill
+                              sizes="(min-width: 1024px) 14rem, 100vw"
+                              fallbackLabel="Promo image"
+                            />
+                            <div className="px-4 py-3">
+                              <p className="text-sm font-semibold text-slate-900">{block.title}</p>
+                              {block.body ? <p className="mt-1 text-xs text-slate-600">{block.body}</p> : null}
+                            </div>
                           </div>
                         ))}
                         {(config.promotional_blocks ?? []).length === 0 ? (

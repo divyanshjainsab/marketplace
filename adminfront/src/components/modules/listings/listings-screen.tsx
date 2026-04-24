@@ -3,7 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 import { ClientApiError, clientApiFetch } from "@/lib/client-api";
-import type { Category, Listing, PaginatedResponse, ProductSuggestion, ProductType } from "@/lib/types";
+import { CloudinaryImage } from "@/components/media/cloudinary-image";
+import { MediaUploadField } from "@/components/media/media-upload-field";
+import type { Category, Listing, MediaAsset, PaginatedResponse, ProductSuggestion, ProductType } from "@/lib/types";
 import { useWorkspace } from "@/components/providers/workspace-provider";
 import { useToast } from "@/components/toast-provider";
 import { Button } from "@/components/ui/button";
@@ -20,7 +22,11 @@ const DEFAULT_FORM = {
   variantName: "",
   variantSku: "",
   priceRupees: "",
+  inventoryCount: "20",
   status: "draft",
+  productImage: null as MediaAsset | null,
+  variantImage: null as MediaAsset | null,
+  listingImage: null as MediaAsset | null,
 };
 
 const STATUS_OPTIONS = ["draft", "active", "archived"] as const;
@@ -55,7 +61,7 @@ export function ListingsScreen() {
   const [reuseProductId, setReuseProductId] = useState<number | null>(null);
   const [suggestions, setSuggestions] = useState<ProductSuggestion[]>([]);
   const [submitting, setSubmitting] = useState(false);
-  const [drafts, setDrafts] = useState<Record<number, { priceRupees: string; status: string }>>({});
+  const [drafts, setDrafts] = useState<Record<number, { priceRupees: string; inventoryCount: string; status: string }>>({});
   const [mutatingListingId, setMutatingListingId] = useState<number | null>(null);
 
   const key = useMemo(() => {
@@ -116,11 +122,12 @@ export function ListingsScreen() {
     if (!payload?.data) return;
 
     setDrafts((current) => {
-      const next: Record<number, { priceRupees: string; status: string }> = {};
+      const next: Record<number, { priceRupees: string; inventoryCount: string; status: string }> = {};
 
       for (const listing of payload.data) {
         next[listing.id] = current[listing.id] ?? {
           priceRupees: priceInputFromCents(listing.price_cents),
+          inventoryCount: String(listing.inventory_count),
           status: listing.status ?? "active",
         };
       }
@@ -147,11 +154,12 @@ export function ListingsScreen() {
     notify("Using existing shared product", "success");
   }
 
-  function updateDraft(listingId: number, field: "priceRupees" | "status", value: string) {
+  function updateDraft(listingId: number, field: "priceRupees" | "inventoryCount" | "status", value: string) {
     setDrafts((current) => ({
       ...current,
       [listingId]: {
         priceRupees: current[listingId]?.priceRupees ?? "",
+        inventoryCount: current[listingId]?.inventoryCount ?? "0",
         status: current[listingId]?.status ?? "active",
         [field]: value,
       },
@@ -175,6 +183,12 @@ export function ListingsScreen() {
       return;
     }
 
+    const inventoryCount = Number(form.inventoryCount.trim());
+    if (!Number.isInteger(inventoryCount) || inventoryCount < 0) {
+      notify("Enter a valid inventory count (0 or more)", "error");
+      return;
+    }
+
     if (!reuseProductId && (!form.categoryId || !form.productTypeId)) {
       notify("Choose a category and product type", "error");
       return;
@@ -191,6 +205,7 @@ export function ListingsScreen() {
             reuse_product_id: reuseProductId ?? undefined,
             force_create: forceCreate,
             price_cents: priceCents,
+            inventory_count: inventoryCount,
             currency: "INR",
             status: form.status,
             product: reuseProductId
@@ -200,11 +215,14 @@ export function ListingsScreen() {
                   sku: form.productSku,
                   category_id: Number(form.categoryId),
                   product_type_id: Number(form.productTypeId),
+                  image_data: form.productImage ?? undefined,
                 },
             variant: {
               name: form.variantName,
               sku: form.variantSku,
+              image_data: form.variantImage ?? undefined,
             },
+            image_data: form.listingImage ?? undefined,
           },
         }),
       });
@@ -237,11 +255,18 @@ export function ListingsScreen() {
 
     const draft = drafts[listing.id] ?? {
       priceRupees: priceInputFromCents(listing.price_cents),
+      inventoryCount: String(listing.inventory_count),
       status: listing.status ?? "active",
     };
     const priceCents = centsFromPriceInput(draft.priceRupees);
     if (Number.isNaN(priceCents)) {
       notify("Enter a valid INR price with up to two decimals", "error");
+      return;
+    }
+
+    const inventoryCount = Number(draft.inventoryCount.trim());
+    if (!Number.isInteger(inventoryCount) || inventoryCount < 0) {
+      notify("Enter a valid inventory count (0 or more)", "error");
       return;
     }
 
@@ -254,6 +279,7 @@ export function ListingsScreen() {
         body: JSON.stringify({
           listing: {
             price_cents: priceCents,
+            inventory_count: inventoryCount,
             currency: "INR",
             status: draft.status,
           },
@@ -419,13 +445,20 @@ export function ListingsScreen() {
               />
             </div>
 
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-4">
               <Input
                 required
                 inputMode="decimal"
                 value={form.priceRupees}
                 onChange={(event) => updateField("priceRupees", event.target.value.replace(/[^\d.]/g, ""))}
                 placeholder="Price in INR"
+              />
+              <Input
+                required
+                inputMode="numeric"
+                value={form.inventoryCount}
+                onChange={(event) => updateField("inventoryCount", event.target.value.replace(/[^\d]/g, ""))}
+                placeholder="Inventory"
               />
               <div className="flex h-11 items-center rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-700">
                 Currency: INR (₹)
@@ -437,6 +470,38 @@ export function ListingsScreen() {
                   </option>
                 ))}
               </Select>
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-3">
+              {!reuseProductId ? (
+                <MediaUploadField
+                  label="Product image"
+                  hint="Shared across every listing that reuses this product."
+                  target="product"
+                  marketplaceId={activeMarketplaceId}
+                  value={form.productImage}
+                  disabled={submitting}
+                  onChange={(asset) => setForm((current) => ({ ...current, productImage: asset }))}
+                />
+              ) : null}
+              <MediaUploadField
+                label="Variant image"
+                hint="Useful when variants need distinct color or style shots."
+                target="variant"
+                marketplaceId={activeMarketplaceId}
+                value={form.variantImage}
+                disabled={submitting}
+                onChange={(asset) => setForm((current) => ({ ...current, variantImage: asset }))}
+              />
+              <MediaUploadField
+                label="Listing image override"
+                hint="Store-specific media takes precedence over variant and product images."
+                target="listing"
+                marketplaceId={activeMarketplaceId}
+                value={form.listingImage}
+                disabled={submitting}
+                onChange={(asset) => setForm((current) => ({ ...current, listingImage: asset }))}
+              />
             </div>
 
             <div className="flex flex-col gap-3 md:flex-row">
@@ -470,6 +535,7 @@ export function ListingsScreen() {
               <th className="px-4 py-3 font-medium">Variant</th>
               <th className="px-4 py-3 font-medium">Status</th>
               <th className="px-4 py-3 font-medium">Price</th>
+              <th className="px-4 py-3 font-medium">Inventory</th>
               <th className="px-4 py-3 font-medium">Updated</th>
               <th className="px-4 py-3 font-medium">Actions</th>
             </tr>
@@ -492,6 +558,9 @@ export function ListingsScreen() {
                     <Skeleton className="h-4 w-24" />
                   </td>
                   <td className="px-4 py-3">
+                    <Skeleton className="h-4 w-20" />
+                  </td>
+                  <td className="px-4 py-3">
                     <Skeleton className="h-4 w-36" />
                   </td>
                   <td className="px-4 py-3">
@@ -503,8 +572,24 @@ export function ListingsScreen() {
               (payload?.data ?? []).map((listing) => (
                 <tr key={listing.id}>
                   <td className="px-4 py-3">
-                    <p className="font-medium text-slate-900">{listing.product.name}</p>
-                    <p className="text-xs text-slate-500">{listing.product.sku}</p>
+                    <div className="flex items-center gap-3">
+                      <CloudinaryImage
+                        asset={listing.image}
+                        alt={listing.product.name}
+                        className="h-16 w-16 shrink-0"
+                        sizes="64px"
+                        fallbackLabel="No image"
+                      />
+                      <div>
+                        <p className="font-medium text-slate-900">{listing.product.name}</p>
+                        <p className="text-xs text-slate-500">{listing.product.sku}</p>
+                        {listing.image_source ? (
+                          <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                            {listing.image_source} image
+                          </p>
+                        ) : null}
+                      </div>
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-slate-600">{listing.variant.name}</td>
                   <td className="px-4 py-3">
@@ -533,6 +618,18 @@ export function ListingsScreen() {
                       {formatMoney(listing.price_cents, listing.currency)}
                     </p>
                   </td>
+                  <td className="px-4 py-3">
+                    <Input
+                      inputMode="numeric"
+                      value={drafts[listing.id]?.inventoryCount ?? String(listing.inventory_count)}
+                      onChange={(event) => updateDraft(listing.id, "inventoryCount", event.target.value.replace(/[^\d]/g, ""))}
+                      disabled={mutatingListingId === listing.id}
+                      className="h-10 min-w-[110px]"
+                    />
+                    <p className="mt-1 text-xs text-slate-500">
+                      {listing.inventory_count <= 0 ? "Out of stock" : `${listing.inventory_count} available`}
+                    </p>
+                  </td>
                   <td className="px-4 py-3 text-slate-500">{new Date(listing.updated_at).toLocaleString()}</td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-2">
@@ -558,7 +655,7 @@ export function ListingsScreen() {
               ))
             ) : (
               <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-sm text-slate-600">
+                <td colSpan={7} className="px-4 py-10 text-center text-sm text-slate-600">
                   No listings found for this store.
                 </td>
               </tr>

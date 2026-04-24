@@ -1,9 +1,7 @@
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
-import { ACCESS_COOKIE, REFRESH_COOKIE } from "@/lib/auth-cookies";
+import { ACCESS_COOKIE, REFRESH_COOKIE, SELECTED_ORGANIZATION_COOKIE } from "@/lib/auth-cookies";
 import { requiredEnv } from "@/lib/env";
-
-const TENANT_COOKIE = "af_tenant";
 
 const HOP_BY_HOP_HEADERS = new Set([
   "connection",
@@ -21,8 +19,8 @@ function backendBaseUrl() {
   return requiredEnv("BACKEND_INTERNAL_URL");
 }
 
-function tenantHeaderValue() {
-  return cookies().get(TENANT_COOKIE)?.value ?? null;
+function selectedOrganizationId() {
+  return cookies().get(SELECTED_ORGANIZATION_COOKIE)?.value ?? null;
 }
 
 function sessionCookieDomain() {
@@ -50,6 +48,10 @@ async function requestBody(req: NextRequest) {
 async function backendFetch(path: string, req: NextRequest, body?: Uint8Array, cookieOverride?: string) {
   const url = new URL(path, backendBaseUrl());
   url.search = req.nextUrl.search;
+  const selectedOrganization = selectedOrganizationId();
+  if (selectedOrganization && !url.searchParams.has("selected_organization_id")) {
+    url.searchParams.set("selected_organization_id", selectedOrganization);
+  }
 
   const headers = new Headers();
   const contentType = req.headers.get("content-type");
@@ -58,8 +60,6 @@ async function backendFetch(path: string, req: NextRequest, body?: Uint8Array, c
   headers.set("X-Frontend-Proxy", "1");
 
   const hostHeader = req.headers.get("host") ?? "";
-  const hostname = hostHeader.split(":")[0].toLowerCase();
-  const isLocalhost = hostname === "localhost" || hostname === "127.0.0.1";
 
   const forwardedHost = req.headers.get("x-forwarded-host") ?? hostHeader;
   if (forwardedHost) {
@@ -71,10 +71,7 @@ async function backendFetch(path: string, req: NextRequest, body?: Uint8Array, c
     req.headers.get("x-forwarded-proto") ?? (req.nextUrl.protocol ? req.nextUrl.protocol.replace(":", "") : "");
   if (forwardedProto) headers.set("X-Forwarded-Proto", forwardedProto);
 
-  if (!isLocalhost) {
-    const tenant = tenantHeaderValue();
-    if (tenant) headers.set("X-Marketplace-Subdomain", tenant);
-  }
+  if (selectedOrganization) headers.set("X-Organization", selectedOrganization);
   const cookieHeader = cookieOverride ?? req.headers.get("cookie");
   if (cookieHeader) headers.set("Cookie", cookieHeader);
 

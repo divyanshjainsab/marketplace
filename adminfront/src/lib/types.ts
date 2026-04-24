@@ -4,19 +4,23 @@ export type SessionUser = {
   email: string | null;
   name: string | null;
   roles?: string[];
+  current_role?: string | null;
+  current_organization_id?: number | null;
+  permissions?: string[];
 };
 
 export type Organization = {
   id: number;
   name: string;
   slug: string;
+  subdomain?: string | null;
+  dev_port?: number | null;
 };
 
 export type Marketplace = {
   id: number;
   name: string;
-  subdomain: string;
-  custom_domain?: string | null;
+  custom_domain: string;
   organization_id: number;
 };
 
@@ -24,6 +28,7 @@ export type SessionResponse = {
   data: {
     authenticated: boolean;
     admin_authorized: boolean;
+    admin_console_access?: boolean;
     tenant_resolved: boolean;
     user: SessionUser | null;
     marketplace: Marketplace | null;
@@ -34,6 +39,7 @@ export type SessionResponse = {
 export type AdminContextResponse = {
   data: {
     organization: Organization;
+    organizations: Organization[];
     marketplaces: Marketplace[];
   };
 };
@@ -45,6 +51,19 @@ export type PaginationMeta = {
   total_pages: number;
 };
 
+export type MediaAsset = {
+  public_id: string;
+  optimized_url: string;
+  version: number;
+  width: number;
+  height: number;
+  urls: {
+    thumbnail?: string;
+    medium?: string;
+    full: string;
+  };
+};
+
 export type PaginatedResponse<T> = {
   data: T[];
   meta: PaginationMeta;
@@ -54,6 +73,7 @@ export type Category = {
   id: number;
   name: string;
   code: string;
+  parent_id?: number | null;
   product_count?: number;
 };
 
@@ -69,6 +89,8 @@ export type Variant = {
   sku: string;
   name: string;
   options?: Record<string, unknown>;
+  image_url?: string | null;
+  image?: MediaAsset | null;
 };
 
 export type Product = {
@@ -77,6 +99,7 @@ export type Product = {
   sku: string;
   metadata?: Record<string, unknown>;
   image_url?: string | null;
+  image?: MediaAsset | null;
   category: Category;
   product_type: ProductType;
   listing_count?: number;
@@ -97,6 +120,10 @@ export type Listing = {
   price_cents: number | null;
   currency: string | null;
   status: string | null;
+  inventory_count: number;
+  image_url?: string | null;
+  image?: MediaAsset | null;
+  image_source?: string | null;
   product: Product;
   variant: Variant;
   updated_at: string;
@@ -132,8 +159,7 @@ export type DashboardResponse = {
     marketplace_status: {
       id: number;
       name: string;
-      subdomain: string;
-      custom_domain: string | null;
+      custom_domain: string;
     };
   };
 };
@@ -141,7 +167,7 @@ export type DashboardResponse = {
 export type HomepageHeroBanner = {
   title?: string;
   subtitle?: string;
-  image_url?: string;
+  image?: MediaAsset | null;
   cta_text?: string;
   cta_href?: string;
 };
@@ -149,7 +175,7 @@ export type HomepageHeroBanner = {
 export type PromotionalBlock = {
   title: string;
   body?: string;
-  image_url?: string;
+  image?: MediaAsset | null;
   href?: string;
 };
 
@@ -168,5 +194,32 @@ export type SiteEditorResponse = {
   data: {
     organization: Organization;
     homepage_config: HomepageConfig;
+  };
+};
+
+export type AdminSettings = {
+  general: {
+    store_name: string;
+    branding: string;
+    logo?: MediaAsset | null;
+  };
+  product_settings: {
+    allow_product_sharing: boolean;
+    isolation_mode: boolean;
+  };
+  integrations: {
+    google_analytics_id: string;
+    meta_pixel_id: string;
+    future_api_notes: string;
+  };
+};
+
+export type AdminSharingScope = "disabled" | "organization" | "global";
+
+export type AdminSettingsResponse = {
+  data: {
+    organization: Organization;
+    settings: AdminSettings;
+    sharing_scope: AdminSharingScope;
   };
 };

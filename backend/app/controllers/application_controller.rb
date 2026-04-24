@@ -3,26 +3,74 @@ class ApplicationController < ActionController::API
   include Pundit::Authorization
 
   before_action :restore_current_context
+  before_action :resolve_current_marketplace!
   before_action :verify_frontend_proxy_for_unsafe_requests
   before_action :set_current_tenant
   before_action :set_paper_trail_whodunnit
   after_action :reset_current_tenant
+  after_action :reset_current_context
 
   rescue_from ActiveRecord::RecordNotFound, with: :render_not_found
   rescue_from ActiveRecord::RecordInvalid, with: :render_record_invalid
   rescue_from ActionController::ParameterMissing, with: :render_parameter_missing
   rescue_from Pundit::NotAuthorizedError, with: :render_forbidden
+  rescue_from Images::ImageUploader::InvalidUploadError, with: :render_media_validation_failed
+  rescue_from Images::AssetPayload::InvalidAssetError, with: :render_media_validation_failed
 
   private
 
   def restore_current_context
-    Current.marketplace = request.get_header("app.current_marketplace")
     Current.user = request.get_header("app.current_user")
-    Current.request_host = request.get_header("app.request_host")
-    Current.org_id = request.get_header("app.current_org_id")
-    Current.organization = request.get_header("app.current_organization")
     Current.session_org_id = request.get_header("app.session_org_id")
     Current.session_roles = request.get_header("app.session_roles")
+  end
+
+  def resolve_current_marketplace!
+    return if tenant_resolution_skipped?
+
+    domain = TenantDomain.from_request(request)
+    marketplace = Marketplace.kept.includes(:organization).find_by(custom_domain: domain)
+
+    if marketplace.nil?
+      response.headers["Cache-Control"] = "no-store"
+      render json: { error: "unknown_tenant" }, status: :not_found
+      return
+    end
+
+    Current.request_host = domain
+    Current.marketplace = marketplace
+    Current.organization = marketplace.organization
+    Current.org_id = marketplace.organization_id
+
+    enforce_session_org_match!
+  end
+
+  def tenant_resolution_skipped?
+    path = request.path.to_s
+
+    path == "/up" ||
+      path.start_with?("/auth/oidc/") ||
+      path.start_with?("/auth/session") ||
+      path.start_with?("/api/v1/admin") ||
+      path == "/api/v1/session" ||
+      path == "/api/v1/me" ||
+      path == "/api/v1/products/suggestions"
+  end
+
+  def enforce_session_org_match!
+    return if request.path.start_with?("/api/v1/admin")
+
+    user = Current.user
+    return if user.blank?
+    return if user.respond_to?(:super_admin?) && user.super_admin?
+
+    tenant_org_id = Current.organization&.id
+    session_org_id = Current.session_org_id
+    return if tenant_org_id.blank? || session_org_id.blank?
+
+    return if tenant_org_id.to_i == session_org_id.to_i
+
+    render_error("unauthorized", status: :unauthorized, message: "Session org mismatch")
   end
 
   def set_current_tenant
@@ -33,6 +81,10 @@ class ApplicationController < ActionController::API
 
   def reset_current_tenant
     ActsAsTenant.current_tenant = nil
+  end
+
+  def reset_current_context
+    Current.reset
   end
 
   def pundit_user
@@ -127,6 +179,10 @@ class ApplicationController < ActionController::API
       }.to_json
     )
     render_error("forbidden", status: :forbidden)
+  end
+
+  def render_media_validation_failed(error)
+    render_error("validation_failed", status: :unprocessable_entity, message: error.message)
   end
 
   def current_marketplace

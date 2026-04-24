@@ -1,9 +1,14 @@
-import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { NextRequest, NextResponse } from "next/server";
+import { ACCESS_COOKIE, REFRESH_COOKIE } from "@/lib/auth";
 import { requiredEnv } from "@/lib/env";
 
-const ACCESS_COOKIE = "mp_access";
-const REFRESH_COOKIE = "mp_refresh";
+function backendBaseUrl() {
+  return requiredEnv("BACKEND_INTERNAL_URL");
+}
+
+function sessionCookieDomain() {
+  return process.env.BACKEND_SESSION_COOKIE_DOMAIN || undefined;
+}
 
 function sessionCookieOptions(overrides: { expires?: Date; maxAge?: number } = {}) {
   return {
@@ -11,36 +16,25 @@ function sessionCookieOptions(overrides: { expires?: Date; maxAge?: number } = {
     sameSite: "lax" as const,
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    domain: process.env.BACKEND_SESSION_COOKIE_DOMAIN || undefined,
+    domain: sessionCookieDomain(),
     ...overrides,
   };
 }
 
-export async function POST() {
-  const accessToken = cookies().get(ACCESS_COOKIE)?.value ?? null;
-  const refreshToken = cookies().get(REFRESH_COOKIE)?.value ?? null;
-
-  const cookieHeader = [
-    accessToken ? `${ACCESS_COOKIE}=${accessToken}` : null,
-    refreshToken ? `${REFRESH_COOKIE}=${refreshToken}` : null,
-  ]
-    .filter(Boolean)
-    .join("; ");
-
-  if (cookieHeader) {
-    await fetch(`${requiredEnv("BACKEND_INTERNAL_URL")}/auth/session/logout`, {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        "X-Frontend-Proxy": "1",
-        Cookie: cookieHeader,
-      },
-      cache: "no-store",
-    }).catch(() => null);
-  }
+export async function POST(req: NextRequest) {
+  await fetch(`${backendBaseUrl()}/auth/session/logout`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "X-Frontend-Proxy": "1",
+      ...(req.headers.get("cookie") ? { Cookie: req.headers.get("cookie") as string } : {}),
+    },
+    cache: "no-store",
+  }).catch(() => null);
 
   const response = NextResponse.json({ ok: true });
-  response.cookies.set(ACCESS_COOKIE, "", sessionCookieOptions({ expires: new Date(0), maxAge: 0 }));
-  response.cookies.set(REFRESH_COOKIE, "", sessionCookieOptions({ expires: new Date(0), maxAge: 0 }));
+  response.cookies.set(ACCESS_COOKIE, "", { ...sessionCookieOptions({ expires: new Date(0), maxAge: 0 }) });
+  response.cookies.set(REFRESH_COOKIE, "", { ...sessionCookieOptions({ expires: new Date(0), maxAge: 0 }) });
   return response;
 }
+

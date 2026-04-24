@@ -45,9 +45,7 @@ export function DashboardScreen() {
             <div className="mt-2 space-y-1">
               <p className="font-semibold">{payload?.marketplace_status?.name ?? payload?.marketplace?.name}</p>
               <p className="text-xs text-slate-500">
-                {payload?.marketplace_status?.custom_domain
-                  ? payload.marketplace_status.custom_domain
-                  : `${payload?.marketplace_status?.subdomain ?? payload?.marketplace?.subdomain}.<your-domain>`}
+                {payload?.marketplace_status?.custom_domain ?? payload?.marketplace?.custom_domain ?? "—"}
               </p>
             </div>
           )}

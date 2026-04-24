@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { apiFetch } from "@/lib/api";
+import { CloudinaryImage } from "@/components/media/cloudinary-image";
 import type { HomepageResponse } from "@/lib/types";
+
+export const revalidate = 60;
 
 function heroTitle(payload: HomepageResponse | null) {
   return payload?.data.homepage_config?.hero_banner?.title ?? payload?.data.marketplace?.name ?? "Marketplace";
@@ -9,7 +12,9 @@ function heroTitle(payload: HomepageResponse | null) {
 export default async function Home() {
   let payload: HomepageResponse | null = null;
   try {
-    payload = await apiFetch<HomepageResponse>("/api/v1/homepage");
+    payload = await apiFetch<HomepageResponse>("/api/v1/homepage", {
+      next: { revalidate },
+    });
   } catch {
     payload = null;
   }
@@ -23,8 +28,12 @@ export default async function Home() {
       <div className="mx-auto max-w-6xl space-y-8 rounded-[2rem] border border-stone-900/10 bg-white/70 p-8 shadow-[0_20px_80px_rgba(72,56,34,0.12)] backdrop-blur md:p-12">
         {order.map((section) => {
           if (section === "hero_banner") {
+            const heroImage = config?.hero_banner?.image ?? null;
             return (
-              <header key={section} className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+              <header
+                key={section}
+                className={`grid gap-6 ${heroImage ? "lg:grid-cols-[1.05fr_0.95fr] lg:items-center" : ""}`}
+              >
                 <div className="space-y-3">
                   <span className="inline-flex rounded-full border border-stone-900/10 bg-stone-900 px-4 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-stone-50">
                     {payload?.data.marketplace?.name ?? "Storefront"}
@@ -33,15 +42,26 @@ export default async function Home() {
                   <p className="max-w-2xl text-base leading-7 text-stone-700 md:text-lg">
                     {config?.hero_banner?.subtitle ?? "Discover what’s new in this marketplace."}
                   </p>
+                  <div className="flex items-center gap-3">
+                    <Link
+                      href={config?.hero_banner?.cta_href ?? "/products"}
+                      className="inline-flex items-center justify-center rounded-2xl bg-stone-900 px-6 py-3 text-sm font-semibold text-stone-50 shadow-sm hover:bg-stone-800"
+                    >
+                      {config?.hero_banner?.cta_text ?? "Browse products"}
+                    </Link>
+                  </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <Link
-                    href={config?.hero_banner?.cta_href ?? "/products"}
-                    className="inline-flex items-center justify-center rounded-2xl bg-stone-900 px-6 py-3 text-sm font-semibold text-stone-50 shadow-sm hover:bg-stone-800"
-                  >
-                    {config?.hero_banner?.cta_text ?? "Browse products"}
-                  </Link>
-                </div>
+                {heroImage ? (
+                  <CloudinaryImage
+                    asset={heroImage}
+                    alt={config?.hero_banner?.title ?? "Hero image"}
+                    className="h-[22rem] w-full"
+                    fill
+                    priority
+                    sizes="(min-width: 1024px) 34rem, 100vw"
+                    fallbackLabel="Hero image"
+                  />
+                ) : null}
               </header>
             );
           }
@@ -57,12 +77,22 @@ export default async function Home() {
                 </div>
                 <div className="mt-4 grid gap-4 md:grid-cols-3">
                   {(resolved?.featured_products ?? []).map((product) => (
-                    <article key={product.id} className="rounded-3xl border border-stone-900/10 bg-white p-5">
-                      <p className="text-sm font-semibold text-stone-900">{product.name}</p>
-                      <p className="mt-1 text-xs text-stone-500">{product.category?.name}</p>
-                      <p className="mt-4 text-xs font-semibold uppercase tracking-[0.2em] text-stone-400">
-                        SKU {product.sku}
-                      </p>
+                    <article key={product.id} className="overflow-hidden rounded-3xl border border-stone-900/10 bg-white">
+                      <CloudinaryImage
+                        asset={product.image}
+                        alt={product.name}
+                        className="h-52 w-full"
+                        fill
+                        sizes="(min-width: 768px) 30vw, 100vw"
+                        fallbackLabel="Product image"
+                      />
+                      <div className="p-5">
+                        <p className="text-sm font-semibold text-stone-900">{product.name}</p>
+                        <p className="mt-1 text-xs text-stone-500">{product.category?.name}</p>
+                        <p className="mt-4 text-xs font-semibold uppercase tracking-[0.2em] text-stone-400">
+                          SKU {product.sku}
+                        </p>
+                      </div>
                     </article>
                   ))}
                   {(resolved?.featured_products ?? []).length === 0 ? (
@@ -79,10 +109,20 @@ export default async function Home() {
                 <h2 className="text-lg font-semibold">Featured listings</h2>
                 <div className="mt-4 grid gap-4 md:grid-cols-3">
                   {(resolved?.featured_listings ?? []).map((listing) => (
-                    <article key={listing.id} className="rounded-3xl border border-stone-900/10 bg-white p-5">
-                      <p className="text-sm font-semibold text-stone-900">{listing.product.name}</p>
-                      <p className="mt-1 text-xs text-stone-500">{listing.variant.name}</p>
-                      <p className="mt-4 text-xs text-stone-500">{listing.status ?? "active"}</p>
+                    <article key={listing.id} className="overflow-hidden rounded-3xl border border-stone-900/10 bg-white">
+                      <CloudinaryImage
+                        asset={listing.image}
+                        alt={listing.product.name}
+                        className="h-52 w-full"
+                        fill
+                        sizes="(min-width: 768px) 30vw, 100vw"
+                        fallbackLabel="Listing image"
+                      />
+                      <div className="p-5">
+                        <p className="text-sm font-semibold text-stone-900">{listing.product.name}</p>
+                        <p className="mt-1 text-xs text-stone-500">{listing.variant.name}</p>
+                        <p className="mt-4 text-xs text-stone-500">{listing.status ?? "active"}</p>
+                      </div>
                     </article>
                   ))}
                   {(resolved?.featured_listings ?? []).length === 0 ? (
@@ -101,7 +141,7 @@ export default async function Home() {
                   {(resolved?.categories ?? []).map((category) => (
                     <Link
                       key={category.code}
-                      href={`/products?q=${encodeURIComponent(category.name)}`}
+                      href={`/category/${category.code}`}
                       className="rounded-full border border-stone-900/10 bg-white px-4 py-2 text-sm font-semibold text-stone-800 hover:bg-stone-100"
                     >
                       {category.name}
@@ -121,14 +161,24 @@ export default async function Home() {
                 <h2 className="text-lg font-semibold">Promotions</h2>
                 <div className="mt-4 grid gap-4 md:grid-cols-2">
                   {(config?.promotional_blocks ?? []).map((block, idx) => (
-                    <article key={idx} className="rounded-3xl border border-stone-900/10 bg-white p-6">
-                      <p className="text-sm font-semibold text-stone-900">{block.title}</p>
-                      {block.body ? <p className="mt-2 text-sm text-stone-600">{block.body}</p> : null}
-                      {block.href ? (
-                        <Link href={block.href} className="mt-4 inline-flex text-sm font-semibold text-stone-800 hover:text-stone-900">
-                          Explore →
-                        </Link>
-                      ) : null}
+                    <article key={idx} className="overflow-hidden rounded-3xl border border-stone-900/10 bg-white">
+                      <CloudinaryImage
+                        asset={block.image}
+                        alt={block.title}
+                        className="h-48 w-full"
+                        fill
+                        sizes="(min-width: 768px) 45vw, 100vw"
+                        fallbackLabel="Promo image"
+                      />
+                      <div className="p-6">
+                        <p className="text-sm font-semibold text-stone-900">{block.title}</p>
+                        {block.body ? <p className="mt-2 text-sm text-stone-600">{block.body}</p> : null}
+                        {block.href ? (
+                          <Link href={block.href} className="mt-4 inline-flex text-sm font-semibold text-stone-800 hover:text-stone-900">
+                            Explore →
+                          </Link>
+                        ) : null}
+                      </div>
                     </article>
                   ))}
                   {(config?.promotional_blocks ?? []).length === 0 ? (

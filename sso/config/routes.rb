@@ -1,11 +1,6 @@
 Rails.application.routes.draw do
   root "home#index"
 
-  if Rails.env.development?
-    require "letter_opener_web"
-    mount LetterOpenerWeb::Engine, at: "/letter_opener"
-  end
-
   devise_for :users, controllers: {
     sessions: "auth/sessions",
     registrations: "auth/registrations"

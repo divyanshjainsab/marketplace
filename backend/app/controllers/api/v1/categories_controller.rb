@@ -41,11 +41,11 @@ module Api
       private
 
       def set_category
-        @category = Category.kept.find(params[:id])
+        @category = policy_scope(Category).find(params[:id])
       end
 
       def category_params
-        params.require(:category).permit(:name, :code)
+        params.require(:category).permit(:name, :code, :parent_id)
       end
     end
   end

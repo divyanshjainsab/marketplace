@@ -2,6 +2,10 @@ module Api
   module V1
     module Admin
       class DashboardController < BaseController
+        before_action only: :show do
+          require_admin_permission!("view_dashboard")
+        end
+
         def show
           data = Rails.cache.fetch(cache_key, expires_in: 15) do
             build_dashboard
@@ -72,7 +76,6 @@ module Api
             marketplace_status: {
               id: current_marketplace.id,
               name: current_marketplace.name,
-              subdomain: current_marketplace.subdomain,
               custom_domain: current_marketplace.custom_domain
             }
           }

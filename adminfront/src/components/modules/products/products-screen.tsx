@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import useSWR from "swr";
 import { clientApiFetch } from "@/lib/client-api";
 import type { PaginatedResponse, Product } from "@/lib/types";
+import { CloudinaryImage } from "@/components/media/cloudinary-image";
 import { useWorkspace } from "@/components/providers/workspace-provider";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -82,7 +83,21 @@ export function ProductsScreen() {
             ) : (payload?.data ?? []).length ? (
               (payload?.data ?? []).map((product) => (
                 <tr key={product.id}>
-                  <td className="px-4 py-3 font-medium text-slate-900">{product.name}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <CloudinaryImage
+                        asset={product.image}
+                        alt={product.name}
+                        className="h-14 w-14 shrink-0"
+                        sizes="56px"
+                        fallbackLabel="No image"
+                      />
+                      <div>
+                        <p className="font-medium text-slate-900">{product.name}</p>
+                        <p className="text-xs text-slate-500">{product.image ? "Cloudinary-backed" : "No media yet"}</p>
+                      </div>
+                    </div>
+                  </td>
                   <td className="px-4 py-3 text-slate-600">{product.sku}</td>
                   <td className="px-4 py-3 text-slate-600">{product.category?.name}</td>
                   <td className="px-4 py-3 text-slate-600">{product.product_type?.name}</td>

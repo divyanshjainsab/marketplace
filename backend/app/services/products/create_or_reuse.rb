@@ -24,7 +24,7 @@ module Products
 
     def call
       if @reuse_product_id.present?
-        product = Product.kept.find(@reuse_product_id)
+        product = reusable_products_relation.find(@reuse_product_id)
         return Result.new(product: product, suggestions: [], status: :reused)
       end
 
@@ -40,6 +40,12 @@ module Products
 
       product = Product.create!(@attrs.slice(:product_type_id, :category_id, :name, :sku, :metadata))
       Result.new(product: product, suggestions: suggestions, status: :created)
+    end
+
+    private
+
+    def reusable_products_relation
+      Products::ReusableRelation.call
     end
   end
 end

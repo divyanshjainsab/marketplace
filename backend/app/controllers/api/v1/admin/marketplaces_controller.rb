@@ -2,6 +2,10 @@ module Api
   module V1
     module Admin
       class MarketplacesController < BaseController
+        before_action do
+          require_admin_permission!("view_market_places")
+        end
+
         def index
           scope = Marketplace.kept.where(organization_id: current_organization.id).order(:name)
           page = paginate(scope)

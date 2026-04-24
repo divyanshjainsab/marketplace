@@ -35,6 +35,7 @@ module Listings
           listing.product = product
           listing.assign_attributes(listing_attributes)
           listing.save!
+          attach_listing_image(listing)
 
           Result.new(
             listing: listing,
@@ -51,7 +52,7 @@ module Listings
 
     def resolve_product
       if @params[:product_id].present?
-        product = Product.kept.find(@params[:product_id])
+        product = reusable_products_relation.find(@params[:product_id])
         return Products::CreateOrReuse::Result.new(product: product, suggestions: [], status: :reused)
       end
 
@@ -63,17 +64,24 @@ module Listings
       )
     end
 
+    def reusable_products_relation
+      Product.kept
+        .joins(:listings)
+        .merge(Listing.kept.where(marketplace_id: @marketplace.id))
+        .distinct
+    end
+
     def resolve_variant(product)
       if @params[:variant_id].present?
         variant = product.variants.kept.find(@params[:variant_id])
         return Variants::CreateOrReuse::Result.new(variant: variant, status: :reused)
       end
 
-      Variants::CreateOrReuse.call(product_id: product.id, attrs: variant_attributes)
+      Variants::CreateOrReuse.call(product: product, attrs: variant_attributes)
     end
 
     def listing_attributes
-      @params.slice(:price_cents, :currency, :status)
+      @params.slice(:price_cents, :currency, :status, :inventory_count)
     end
 
     def product_attributes
@@ -85,30 +93,88 @@ module Listings
     end
 
     def attach_product_image(product)
-      image = @params.dig(:product, :image)
-      return if image.blank?
+      folder = Images::FolderPath.for(target: :product, organization: organization)
+      tags = Images::FolderPath.tags(target: :product, organization: organization)
 
-      Images::ImageUploader.attach(
+      image = @params.dig(:product, :image)
+      if image.present?
+        Images::ImageAttachment.attach_upload(
+          record: product,
+          uploaded_file: image,
+          folder: folder,
+          tags: tags,
+          delete_old: true
+        )
+        return
+      end
+
+      image_data = @params.dig(:product, :image_data)
+      return if image_data.blank?
+
+      Images::ImageAttachment.replace(
         record: product,
-        io: image.tempfile,
-        filename: image.original_filename,
-        folder: "products",
+        asset_payload: image_data,
+        folder_prefix: folder,
         delete_old: true
       )
     end
 
     def attach_variant_image(variant)
-      image = @params.dig(:variant, :image)
-      return if image.blank?
+      folder = Images::FolderPath.for(target: :variant, organization: organization)
+      tags = Images::FolderPath.tags(target: :variant, organization: organization)
 
-      Images::ImageUploader.attach(
+      image = @params.dig(:variant, :image)
+      if image.present?
+        Images::ImageAttachment.attach_upload(
+          record: variant,
+          uploaded_file: image,
+          folder: folder,
+          tags: tags,
+          delete_old: true
+        )
+        return
+      end
+
+      image_data = @params.dig(:variant, :image_data)
+      return if image_data.blank?
+
+      Images::ImageAttachment.replace(
         record: variant,
-        io: image.tempfile,
-        filename: image.original_filename,
-        folder: "variants",
+        asset_payload: image_data,
+        folder_prefix: folder,
         delete_old: true
       )
     end
+
+    def attach_listing_image(listing)
+      folder = Images::FolderPath.for(target: :listing, organization: organization, marketplace: @marketplace)
+      tags = Images::FolderPath.tags(target: :listing, organization: organization, marketplace: @marketplace)
+
+      image = @params[:image]
+      if image.present?
+        Images::ImageAttachment.attach_upload(
+          record: listing,
+          uploaded_file: image,
+          folder: folder,
+          tags: tags,
+          delete_old: true
+        )
+        return
+      end
+
+      image_data = @params[:image_data]
+      return if image_data.blank?
+
+      Images::ImageAttachment.replace(
+        record: listing,
+        asset_payload: image_data,
+        folder_prefix: folder,
+        delete_old: true
+      )
+    end
+
+    def organization
+      @organization ||= @marketplace.organization
+    end
   end
 end
-

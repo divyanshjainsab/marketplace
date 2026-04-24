@@ -3,7 +3,8 @@ class CategorySerializer < BaseSerializer
     payload = {
       id: record.id,
       name: record.name,
-      code: record.code
+      code: record.code,
+      parent_id: record.parent_id
     }
 
     if context[:product_count_by_category_id]

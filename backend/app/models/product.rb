@@ -2,6 +2,7 @@ class Product < ApplicationRecord
   belongs_to :product_type
   belongs_to :category
 
+  include HasCloudinaryImage
   include SoftDeletable
   include Audited
   include PgSearch::Model
@@ -11,7 +12,6 @@ class Product < ApplicationRecord
 
   validates :name, presence: true
   validates :sku, presence: true, uniqueness: { conditions: -> { kept } }
-  validates :image_url, length: { maximum: 4096 }, allow_nil: true
 
   pg_search_scope :suggest,
                   against: %i[name sku],

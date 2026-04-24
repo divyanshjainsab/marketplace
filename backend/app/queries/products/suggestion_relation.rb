@@ -9,7 +9,7 @@ module Products
     end
 
     def call
-      scope = Product.kept.includes(:product_type, :category)
+      scope = scoped_products_relation.includes(:product_type, :category)
 
       if @query.present?
         scope = scope.suggest(@query)
@@ -23,6 +23,10 @@ module Products
     end
 
     private
+
+    def scoped_products_relation
+      Products::ReusableRelation.call
+    end
 
     def sanitize_like(value)
       ActiveRecord::Base.sanitize_sql_like(value)

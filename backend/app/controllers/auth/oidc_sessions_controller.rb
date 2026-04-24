@@ -98,9 +98,6 @@ module Auth
       return redirect_to frontend_login_url(app: app, origin: frontend_origin), allow_other_host: true if external_id.blank?
 
       resolved_org = resolve_tenant_from_state(payload)
-      if app == "admin" && resolved_org.nil?
-        return redirect_to frontend_not_authorized_url(app: app, origin: frontend_origin), allow_other_host: true
-      end
 
       user = User.kept.find_or_initialize_by(external_id: external_id)
       user.email = email if email.present?
@@ -111,13 +108,13 @@ module Auth
       end
       user.save! if user.changed?
 
-      allowed_roles = authorize_login!(app: app, user: user, organization: resolved_org, claimed_roles: roles)
-      return redirect_to frontend_not_authorized_url(app: app, origin: frontend_origin), allow_other_host: true if allowed_roles.nil?
+      login_context = authorize_login!(app: app, user: user, organization: resolved_org, claimed_roles: roles)
+      return redirect_to frontend_not_authorized_url(app: app, origin: frontend_origin), allow_other_host: true if login_context.nil?
 
       session_pair = Auth::SessionManager.issue(
         user: user,
-        org_id: resolved_org&.id,
-        roles: allowed_roles,
+        org_id: login_context[:organization]&.id,
+        roles: login_context[:roles],
         request: request
       )
 
@@ -250,20 +247,16 @@ module Auth
     def origin_allowed_for_app?(origin:, app:)
       return false if origin.nil?
 
-      host = origin[:host].to_s.downcase
-      return false if host.blank?
+      domain = TenantDomain.normalize(host: origin[:host], port: origin[:port], scheme: origin[:scheme])
+      return false if domain.blank?
 
-      if localhost?(host)
-        return local_origin_allowed_for_app?(port: origin[:port], app: app)
+      if app.to_s == "admin"
+        frontend = URI.parse(frontend_base_url(app))
+        configured = TenantDomain.normalize(host: frontend.host, port: frontend.port, scheme: frontend.scheme)
+        return domain == configured
       end
 
-      configured_host = URI.parse(frontend_base_url(app)).host.to_s.downcase
-      return true if configured_host.present? && configured_host == host
-
-      subdomain = extract_subdomain(host)
-      return false if subdomain.blank?
-
-      Organization.kept.exists?(subdomain: subdomain)
+      Marketplace.kept.exists?(custom_domain: domain)
     rescue URI::InvalidURIError
       false
     end
@@ -290,38 +283,45 @@ module Auth
     end
 
     def resolve_tenant_from_state(payload)
-      host = payload["origin_host"].to_s.downcase
-      host = "localhost" if host == "127.0.0.1"
-      host = "localhost" if host == "0.0.0.0"
-      port = Integer(payload["origin_port"]) rescue 0
+      return nil unless payload.is_a?(Hash)
 
-      if host == "localhost"
-        return nil unless port.positive?
-        return Organization.kept.find_by(dev_port: port)
-      end
+      domain = TenantDomain.normalize(host: payload["origin_host"], port: payload["origin_port"], scheme: payload["origin_scheme"])
+      return nil if domain.blank?
 
-      subdomain = host.split(".").first.to_s.downcase
-      return nil if subdomain.blank? || subdomain == "www"
-
-      Organization.kept.find_by(subdomain: subdomain)
+      Marketplace.kept.includes(:organization).find_by(custom_domain: domain)&.organization
     end
 
     def authorize_login!(app:, user:, organization:, claimed_roles:)
       claimed_roles = Array(claimed_roles || [])
       super_admin = claimed_roles.include?("super_admin") || (user.respond_to?(:super_admin?) && user.super_admin?)
+      access = Rbac::Access.new(user)
 
-      return ["super_admin"] if super_admin
+      return {
+        roles: ["super_admin"],
+        organization: organization || access.default_organization(min_role: :staff)
+      } if super_admin
 
-      return ["user"] if app != "admin"
-      return nil if organization.nil?
+      return {
+        roles: ["user"],
+        organization: organization
+      } if app != "admin"
 
-      membership = OrganizationMembership.kept.find_by(user_id: user.id, organization_id: organization.id)
-      return nil if membership.nil?
+      chosen_organization =
+        if organization.present? && access.admin_console_access?(organization)
+          organization
+        else
+          access.default_organization(min_role: :staff, preferred_org_id: organization&.id)
+        end
+      return nil if chosen_organization.nil?
 
-      allowed = Rbac::Registry.rank_for(membership.role) >= Rbac::Registry.rank_for("admin")
-      return nil unless allowed
+      membership_role = access.role_for(chosen_organization)
+      return nil if membership_role.blank?
+      return nil unless access.admin_console_access?(chosen_organization)
 
-      ["org_admin"]
+      {
+        roles: [membership_role],
+        organization: chosen_organization
+      }
     end
 
     def frontend_url(app:, path:, origin: nil, query: nil)
@@ -350,32 +350,8 @@ module Auth
       %w[localhost 127.0.0.1 0.0.0.0].include?(host.to_s.downcase)
     end
 
-    def extract_subdomain(host)
-      parts = host.to_s.split(".")
-      return "" if parts.length < 3
-
-      subdomain = parts.first.to_s.downcase
-      return "" if subdomain.blank? || subdomain == "www"
-
-      subdomain
-    end
-
     def non_default_port?(scheme, port)
       !(scheme == "http" && port == 80) && !(scheme == "https" && port == 443)
-    end
-
-    def local_origin_allowed_for_app?(port:, app:)
-      normalized_port = port.to_i
-      return false unless normalized_port.positive?
-
-      case app.to_s
-      when "admin"
-        Organization.kept.exists?(dev_port: normalized_port)
-      else
-        URI.parse(frontend_base_url(app)).port == normalized_port
-      end
-    rescue URI::InvalidURIError
-      false
     end
 
     def require_frontend_proxy!

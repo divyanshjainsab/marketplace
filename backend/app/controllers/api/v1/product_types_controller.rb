@@ -41,7 +41,7 @@ module Api
       private
 
       def set_product_type
-        @product_type = ProductType.kept.find(params[:id])
+        @product_type = policy_scope(ProductType).find(params[:id])
       end
 
       def product_type_params

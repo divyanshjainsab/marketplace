@@ -2,6 +2,10 @@ module Api
   module V1
     module Admin
       class UsersController < BaseController
+        before_action do
+          require_admin_permission!("view_organization_users")
+        end
+
         def index
           scope = User.kept
             .joins(:organization_memberships)

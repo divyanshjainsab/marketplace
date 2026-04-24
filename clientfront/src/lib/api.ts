@@ -1,7 +1,7 @@
 import "server-only";
 import { getJwt, getRefreshToken, ACCESS_COOKIE, REFRESH_COOKIE } from "@/lib/auth";
-import { getTenant } from "@/lib/tenant";
 import { requiredEnv } from "@/lib/env";
+import { headers as nextHeaders } from "next/headers";
 
 export class ApiError extends Error {
   status: number;
@@ -21,10 +21,10 @@ export async function apiFetch<T>(
 ): Promise<T> {
   const jwt = getJwt();
   const refreshToken = getRefreshToken();
-  const tenant = getTenant();
 
   const headers = new Headers(init?.headers);
   headers.set("Accept", "application/json");
+  headers.set("X-Frontend-Proxy", "1");
 
   const cookie = [
     jwt ? `${ACCESS_COOKIE}=${jwt}` : null,
@@ -33,12 +33,23 @@ export async function apiFetch<T>(
     .filter(Boolean)
     .join("; ");
   if (cookie) headers.set("Cookie", cookie);
-  if (tenant.subdomain) headers.set("X-Marketplace-Subdomain", tenant.subdomain);
+
+  // Ensure the backend can resolve tenant purely from request host/port even when
+  // this fetch runs server-side (Node) against BACKEND_INTERNAL_URL.
+  const incoming = nextHeaders();
+  const forwardedHost = incoming.get("x-forwarded-host") ?? incoming.get("host");
+  if (forwardedHost) {
+    headers.set("X-Forwarded-Host", forwardedHost);
+    const forwardedPort = forwardedHost.split(":")[1];
+    if (forwardedPort) headers.set("X-Forwarded-Port", forwardedPort);
+  }
+  const forwardedProto = incoming.get("x-forwarded-proto");
+  if (forwardedProto) headers.set("X-Forwarded-Proto", forwardedProto);
 
   const res = await fetch(`${backendBaseUrl()}${path}`, {
     ...init,
     headers,
-    cache: "no-store",
+    cache: init?.cache ?? (init?.next ? undefined : "no-store"),
   });
 
   if (!res.ok) {

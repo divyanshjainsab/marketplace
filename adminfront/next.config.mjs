@@ -1,5 +1,9 @@
 /** @type {import('next').NextConfig} */
-const nextConfig = {};
+const nextConfig = {
+  images: {
+    loader: "custom",
+    loaderFile: "./src/lib/cloudinary-loader.ts",
+  },
+};
 
 export default nextConfig;
-

@@ -2,6 +2,10 @@ module Api
   module V1
     module Admin
       class ProductsController < BaseController
+        before_action only: :index do
+          require_admin_permission!("view_products")
+        end
+
         def index
           listing_scope = Listing.kept.where(marketplace_id: current_marketplace.id)
           product_ids = listing_scope.select(:product_id).distinct
@@ -20,4 +24,3 @@ module Api
     end
   end
 end
-

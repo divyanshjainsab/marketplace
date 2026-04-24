@@ -6,6 +6,7 @@ class ProductSerializer < BaseSerializer
       sku: record.sku,
       metadata: record.metadata,
       image_url: record.image_url,
+      image: ImageAssetSerializer.one(record.image_asset),
       category: CategorySerializer.one(record.category),
       product_type: ProductTypeSerializer.one(record.product_type)
     }

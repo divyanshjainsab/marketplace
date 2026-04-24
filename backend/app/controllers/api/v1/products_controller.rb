@@ -77,7 +77,7 @@ module Api
       private
 
       def set_product
-        @product = Product.kept.includes(:product_type, :category, :variants).find(params[:id])
+        @product = policy_scope(Product).includes(:product_type, :category, :variants).find(params[:id])
       end
 
       def product_params
@@ -87,23 +87,41 @@ module Api
           :name,
           :sku,
           :image,
+          image_data: %i[public_id optimized_url version width height],
           metadata: {}
         )
       end
 
       def product_attrs
-        product_params.except(:image)
+        product_params.except(:image, :image_data)
       end
 
       def attach_image_if_present(product)
-        image = product_params[:image]
-        return if image.blank?
+        organization = Current.organization || Current.marketplace&.organization
+        raise Images::ImageUploader::InvalidUploadError, "Organization context is required for media uploads" if organization.nil?
 
-        Images::ImageUploader.attach(
+        folder = Images::FolderPath.for(target: :product, organization: organization)
+        tags = Images::FolderPath.tags(target: :product, organization: organization)
+
+        image = product_params[:image]
+        if image.present?
+          Images::ImageAttachment.attach_upload(
+            record: product,
+            uploaded_file: image,
+            folder: folder,
+            tags: tags,
+            delete_old: true
+          )
+          return
+        end
+
+        image_data = product_params[:image_data]
+        return if image_data.blank?
+
+        Images::ImageAttachment.replace(
           record: product,
-          io: image.tempfile,
-          filename: image.original_filename,
-          folder: "products",
+          asset_payload: image_data,
+          folder_prefix: folder,
           delete_old: true
         )
       end

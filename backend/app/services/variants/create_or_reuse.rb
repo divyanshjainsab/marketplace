@@ -2,12 +2,12 @@ module Variants
   class CreateOrReuse
     Result = Struct.new(:variant, :status, keyword_init: true)
 
-    def self.call(product_id:, attrs:)
-      new(product_id: product_id, attrs: attrs).call
+    def self.call(product:, attrs:)
+      new(product: product, attrs: attrs).call
     end
 
-    def initialize(product_id:, attrs:)
-      @product = Product.kept.find(product_id)
+    def initialize(product:, attrs:)
+      @product = product
       @attrs = attrs.to_h.symbolize_keys
     end
 
@@ -21,4 +21,3 @@ module Variants
     end
   end
 end
-
