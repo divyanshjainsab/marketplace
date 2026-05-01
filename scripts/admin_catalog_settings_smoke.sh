@@ -3,8 +3,8 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-BACKEND_BASE="${BACKEND_BASE:-http://localhost:3015}"
-SSO_BASE="${SSO_BASE:-http://localhost:3001}"
+BACKEND_BASE="${BACKEND_BASE:-http://localhost:3001}"
+SSO_BASE="${SSO_BASE:-http://localhost:3003}"
 ADMINFRONT_BASE="${ADMINFRONT_BASE:-http://localhost:3000}"
 PASSWORD="${SEED_PASSWORD:-Password123!}"
 
@@ -150,14 +150,6 @@ product_sku="SMOKE-SETTINGS-PRODUCT-${suffix}"
 variant_sku="SMOKE-SETTINGS-VARIANT-${suffix}"
 
 category_payload="$tmpdir/category.json"
-cat >"$category_payload" <<JSON
-{
-  "category": {
-    "name": "${category_name}"
-  }
-}
-JSON
-
 product_type_payload="$tmpdir/product_type.json"
 cat >"$product_type_payload" <<JSON
 {
@@ -168,11 +160,21 @@ cat >"$product_type_payload" <<JSON
 JSON
 
 echo "-- Create category and product type"
-category_response="$(write_json "POST" "${BACKEND_BASE}/api/v1/admin/categories?marketplace_id=${marketplace_id}" "$jar_admin" "$category_payload" "localhost:3000")"
 product_type_response="$(write_json "POST" "${BACKEND_BASE}/api/v1/admin/product_types?marketplace_id=${marketplace_id}" "$jar_admin" "$product_type_payload" "localhost:3000")"
 
-category_id="$(printf "%s" "$category_response" | json_get "data.id")"
 product_type_id="$(printf "%s" "$product_type_response" | json_get "data.id")"
+
+cat >"$category_payload" <<JSON
+{
+  "category": {
+    "name": "${category_name}",
+    "product_type_id": ${product_type_id}
+  }
+}
+JSON
+
+category_response="$(write_json "POST" "${BACKEND_BASE}/api/v1/admin/categories?marketplace_id=${marketplace_id}" "$jar_admin" "$category_payload" "localhost:3000")"
+category_id="$(printf "%s" "$category_response" | json_get "data.id")"
 
 if [[ -z "$category_id" || -z "$product_type_id" ]]; then
   echo "Failed to create category or product type" >&2

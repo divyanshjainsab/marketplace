@@ -9,8 +9,6 @@ module Sso
       end
     end
 
-    JWKS_CACHE_KEY = "sso:oidc:jwks"
-
     def self.verify(id_token:, client_id:, nonce:)
       new(id_token: id_token, client_id: client_id, nonce: nonce).verify
     end
@@ -71,7 +69,7 @@ module Sso
     end
 
     def jwks_keys
-      Rails.cache.fetch(JWKS_CACHE_KEY, expires_in: 5.minutes) do
+      SystemCache.fetch(namespace: "sso_oidc", key: "jwks", expires_in: 5.minutes) do
         response = Faraday.get(jwks_url) do |req|
           req.headers["Accept"] = "application/json"
         end

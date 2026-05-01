@@ -6,6 +6,7 @@ module Api
 
       def index
         scope = policy_scope(Category).order(:name)
+        scope = scope.where(product_type_id: params[:product_type_id]) if params[:product_type_id].present?
         page = paginate(scope)
         authorize Category
 
@@ -45,7 +46,7 @@ module Api
       end
 
       def category_params
-        params.require(:category).permit(:name, :code, :parent_id)
+        params.require(:category).permit(:product_type_id, :name, :code, :parent_id)
       end
     end
   end

@@ -8,6 +8,8 @@ import { useWorkspace } from "@/components/providers/workspace-provider";
 import { NAV_ITEMS } from "@/lib/nav";
 import { cn } from "@/lib/cn";
 import { hasPermission } from "@/lib/permissions";
+import { Button } from "@/components/ui/button";
+import { Select } from "@/components/ui/select";
 
 function startTour() {
   window.dispatchEvent(new CustomEvent("adminfront:start-tour"));
@@ -38,11 +40,11 @@ export default function AppShell({ children }: PropsWithChildren) {
   );
 
   return (
-    <div className="min-h-screen text-slate-900">
-      <div className="mx-auto flex min-h-screen max-w-[1680px] gap-4 px-3 py-3 sm:gap-6 sm:px-4 sm:py-4 lg:px-6">
+    <div className="h-[100dvh] min-h-screen text-slate-900">
+      <div className="mx-auto flex h-full max-w-screen-2xl gap-4 px-3 py-3 sm:gap-6 sm:px-4 sm:py-4 lg:px-6">
         <aside
           data-tour="sidebar"
-          className="hidden w-72 shrink-0 flex-col rounded-[2rem] border border-slate-900/10 bg-slate-950 px-5 py-6 text-slate-100 shadow-[0_24px_80px_rgba(15,23,42,0.22)] lg:flex"
+          className="hidden w-72 shrink-0 flex-col rounded-2xl border border-slate-900/10 bg-slate-950 px-6 py-6 text-slate-100 shadow-xl lg:flex"
         >
           <div className="space-y-2">
             <p className="text-xs uppercase tracking-[0.35em] text-slate-400">Admin</p>
@@ -76,14 +78,16 @@ export default function AppShell({ children }: PropsWithChildren) {
           </nav>
 
           <div className="mt-4 space-y-3">
-            <button
+            <Button
               type="button"
               onClick={startTour}
               data-tour="take-tour"
-              className="w-full rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-left text-sm font-medium text-white hover:bg-white/10"
+              variant="ghost"
+              size="md"
+              className="w-full justify-start border border-white/15 bg-white/5 text-white hover:bg-white/10 focus-visible:ring-white/30"
             >
               Take a Tour
-            </button>
+            </Button>
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
               <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Access</p>
               <p className="mt-2 text-sm text-slate-300">
@@ -93,20 +97,22 @@ export default function AppShell({ children }: PropsWithChildren) {
           </div>
         </aside>
 
-        <div className="flex min-h-full flex-1 flex-col overflow-hidden rounded-[1.5rem] border border-slate-900/10 bg-white/80 shadow-[0_24px_80px_rgba(15,23,42,0.12)] backdrop-blur sm:rounded-[2rem]">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col rounded-2xl border border-slate-200 bg-white/80 shadow-xl backdrop-blur">
           <header
             data-tour="topbar"
-            className="flex flex-col gap-4 border-b border-slate-900/10 px-4 py-4 sm:px-6 sm:py-5 lg:flex-row lg:items-center lg:justify-between"
+            className="flex flex-col gap-4 border-b border-slate-200 px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between"
           >
             <div className="flex items-center gap-3">
-              <button
+              <Button
                 type="button"
-                className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 shadow-sm hover:bg-slate-50 lg:hidden"
+                variant="secondary"
+                size="sm"
+                className="lg:hidden"
                 onClick={() => setMobileOpen(true)}
                 aria-label="Open navigation"
               >
                 Menu
-              </button>
+              </Button>
               <div>
                 <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Organization</p>
                 <h2 className="mt-2 text-xl font-semibold tracking-tight text-slate-950 sm:text-2xl">{orgName}</h2>
@@ -115,51 +121,47 @@ export default function AppShell({ children }: PropsWithChildren) {
             </div>
             <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center lg:justify-end">
               {adminContext?.organizations && adminContext.organizations.length > 1 ? (
-                <label className="w-full rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-700 sm:w-auto">
-                  <span className="sr-only">Active organization</span>
-                  <select
-                    value={activeOrganizationId ?? adminContext.organization.id}
-                    onChange={(e) => {
-                      setActiveOrganizationId(Number(e.target.value)).catch(() => null);
-                    }}
-                    className="w-full bg-transparent text-sm outline-none sm:min-w-[11rem]"
-                  >
-                    {adminContext.organizations.map((organization) => (
-                      <option key={organization.id} value={organization.id}>
-                        {organization.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                <Select
+                  aria-label="Active organization"
+                  value={activeOrganizationId ?? adminContext.organization.id}
+                  onChange={(e) => {
+                    setActiveOrganizationId(Number(e.target.value)).catch(() => null);
+                  }}
+                  className="w-full sm:w-auto sm:min-w-[11rem]"
+                >
+                  {adminContext.organizations.map((organization) => (
+                    <option key={organization.id} value={organization.id}>
+                      {organization.name}
+                    </option>
+                  ))}
+                </Select>
               ) : null}
               {adminContext?.marketplaces?.length ? (
-                <label className="w-full rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-700 sm:w-auto">
-                  <span className="sr-only">Active store</span>
-                  <select
-                    value={activeMarketplaceId ?? adminContext.marketplaces[0].id}
-                    onChange={(e) => setActiveMarketplaceId(Number(e.target.value))}
-                    className="w-full bg-transparent text-sm outline-none sm:min-w-[11rem]"
-                  >
-                    {adminContext.marketplaces.map((mkt) => (
-                      <option key={mkt.id} value={mkt.id}>
-                        {mkt.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                <Select
+                  aria-label="Active store"
+                  value={activeMarketplaceId ?? adminContext.marketplaces[0].id}
+                  onChange={(e) => setActiveMarketplaceId(Number(e.target.value))}
+                  className="w-full sm:w-auto sm:min-w-[11rem]"
+                >
+                  {adminContext.marketplaces.map((mkt) => (
+                    <option key={mkt.id} value={mkt.id}>
+                      {mkt.name}
+                    </option>
+                  ))}
+                </Select>
               ) : (
-                <div className="w-full rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-700 sm:w-auto">
+                <div className="flex h-11 w-full items-center rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700 sm:w-auto">
                   {storeName}
                 </div>
               )}
-              <div className="w-full truncate rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-700 sm:w-auto sm:max-w-[18rem]">
+              <div className="flex h-11 w-full items-center truncate rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700 sm:w-auto sm:max-w-[18rem]">
                 {session?.user?.name ?? session?.user?.email ?? "Loading user"}
               </div>
               <LogoutButton />
             </div>
           </header>
 
-          <main className="flex-1 px-4 py-4 sm:px-6 sm:py-6">{children}</main>
+          <main className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-6">{children}</main>
         </div>
       </div>
 
@@ -174,13 +176,15 @@ export default function AppShell({ children }: PropsWithChildren) {
           <div className="relative z-10 h-full w-[min(20rem,88vw)] bg-slate-950 p-6 text-slate-100 shadow-2xl">
             <div className="flex items-center justify-between">
               <p className="text-sm font-semibold">{orgName}</p>
-              <button
+              <Button
                 type="button"
-                className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-medium text-white hover:bg-white/10"
+                variant="ghost"
+                size="sm"
+                className="border border-white/15 bg-white/5 text-white hover:bg-white/10 focus-visible:ring-white/30"
                 onClick={() => setMobileOpen(false)}
               >
                 Close
-              </button>
+              </Button>
             </div>
             <nav className="mt-6 flex flex-col gap-2">
               {visibleNavItems.map((item) => {
@@ -200,16 +204,18 @@ export default function AppShell({ children }: PropsWithChildren) {
                 );
               })}
             </nav>
-            <button
+            <Button
               type="button"
               onClick={() => {
                 setMobileOpen(false);
                 startTour();
               }}
-              className="mt-6 w-full rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-left text-sm font-medium text-white hover:bg-white/10"
+              variant="ghost"
+              size="md"
+              className="mt-6 w-full justify-start border border-white/15 bg-white/5 text-white hover:bg-white/10 focus-visible:ring-white/30"
             >
               Take a Tour
-            </button>
+            </Button>
           </div>
         </div>
       ) : null}

@@ -8,7 +8,7 @@ module Api
         authorize Listing
 
         scope = policy_scope(Current.marketplace.listings)
-          .includes(:variant, product: %i[product_type category])
+          .includes(:inventory, :variant, product: %i[product_type category])
           .order(updated_at: :desc)
         scope = scope.where(status: params[:status]) if params[:status].present?
         scope = scope.where(product_id: params[:product_id]) if params[:product_id].present?
@@ -52,7 +52,7 @@ module Api
         end
 
         listing = Current.marketplace.listings
-          .includes(:variant, product: %i[product_type category])
+          .includes(:inventory, :variant, product: %i[product_type category])
           .find(result.listing.id)
 
         render_resource(listing, serializer: ListingSerializer, status: status_for_create_or_reuse(result.status))
@@ -61,6 +61,7 @@ module Api
       def update
         authorize @listing
         @listing.update!(listing_record_attributes)
+        update_inventory_if_requested!(@listing)
         attach_listing_image_if_present(@listing)
         render_resource(@listing, serializer: ListingSerializer)
       end
@@ -76,7 +77,7 @@ module Api
       def set_listing
         @listing = Current.marketplace.listings
           .kept
-          .includes(:variant, product: %i[product_type category])
+          .includes(:inventory, :variant, product: %i[product_type category])
           .find(params[:id])
       end
 
@@ -132,7 +133,7 @@ module Api
       end
 
       def listing_record_attributes
-        listing_update_params.except(:image, :image_data)
+        listing_update_params.except(:image, :image_data, :inventory_count)
       end
 
       def attach_listing_image_if_present(listing)
@@ -157,7 +158,10 @@ module Api
             uploaded_file: image,
             folder: folder,
             tags: tags,
-            delete_old: true
+            delete_old: true,
+            organization_id: organization.id,
+            marketplace_id: Current.marketplace&.id,
+            request_host: Current.request_host
           )
           return
         end
@@ -169,8 +173,19 @@ module Api
           record: listing,
           asset_payload: image_data,
           folder_prefix: folder,
-          delete_old: true
+          delete_old: true,
+          organization_id: organization.id,
+          marketplace_id: Current.marketplace&.id,
+          request_host: Current.request_host
         )
+      end
+
+      def update_inventory_if_requested!(listing)
+        return unless listing_update_params.key?(:inventory_count)
+
+        inventory = listing.inventory || listing.build_inventory(marketplace: Current.marketplace)
+        inventory.quantity_on_hand = listing_update_params[:inventory_count].to_i
+        inventory.save!
       end
 
       def status_for_create_or_reuse(status)

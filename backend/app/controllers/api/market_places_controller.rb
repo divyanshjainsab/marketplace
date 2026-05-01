@@ -3,16 +3,23 @@ module Api
     before_action :require_manager!, only: :update
 
     def update
-      current_marketplace.market_place_option || current_marketplace.create_market_place_option!
+      ActiveRecord::Base.transaction do
+        current_marketplace.market_place_option || current_marketplace.create_market_place_option!
 
-      attrs = sanitized_market_place_params.to_h
-      # Avoid runtime explosions if migrations haven't been applied yet; unknown keys are ignored.
-      attrs.slice!(*current_marketplace.attribute_names)
+        attrs = sanitized_market_place_params.to_h
+        # Avoid runtime explosions if migrations haven't been applied yet; unknown keys are ignored.
+        attrs.slice!(*current_marketplace.attribute_names)
 
-      if current_marketplace.update(attrs)
-        render json: render_market_place(current_marketplace)
-      else
-        render json: current_marketplace.errors, status: :unprocessable_entity
+        if current_marketplace.update(attrs)
+          audit_log!(
+            action: "marketplace.update",
+            resource: current_marketplace,
+            changes: current_marketplace.saved_changes
+          )
+          render json: render_market_place(current_marketplace)
+        else
+          render json: current_marketplace.errors, status: :unprocessable_entity
+        end
       end
     end
 

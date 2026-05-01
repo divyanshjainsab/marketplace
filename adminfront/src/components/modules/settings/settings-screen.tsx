@@ -9,7 +9,7 @@ export function SettingsScreen() {
     useWorkspace();
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <Card>
         <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Settings</p>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">Organization</h1>

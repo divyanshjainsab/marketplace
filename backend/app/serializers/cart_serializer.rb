@@ -5,7 +5,7 @@ class CartSerializer < BaseSerializer
 
     listings_by_variant_id = Listing.kept
       .where(marketplace_id: record.marketplace_id, variant_id: variant_ids)
-      .includes(:variant, product: %i[product_type category])
+      .includes(:inventory, :variant, product: %i[product_type category])
       .index_by(&:variant_id)
 
     subtotal_cents = cart_items.sum do |item|
@@ -24,4 +24,3 @@ class CartSerializer < BaseSerializer
     }
   end
 end
-

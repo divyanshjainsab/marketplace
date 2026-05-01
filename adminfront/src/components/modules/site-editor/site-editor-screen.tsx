@@ -10,8 +10,11 @@ import { useWorkspace } from "@/components/providers/workspace-provider";
 import { useToast } from "@/components/toast-provider";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
+import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Text } from "@/components/ui/typography";
 
 const DEFAULT_ORDER: HomepageConfig["layout_order"] = [
   "hero_banner",
@@ -123,33 +126,33 @@ export function SiteEditorScreen() {
   const loading = workspaceLoading || siteEditorSwr.isLoading;
 
   return (
-    <div className="space-y-5" data-tour="site-editor">
-      <Card className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <p className="text-xs uppercase tracking-[0.25em] text-slate-500">CMS</p>
-          <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">Site Editor</h1>
-          <p className="mt-2 text-sm text-slate-600">
-            {activeMarketplace?.name
-              ? `Configure the clientfront homepage for ${activeMarketplace.name}.`
-              : "Configure the clientfront homepage for your organization."}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="secondary"
-            onClick={() => {
-              setDraft(normalizeConfig(serverConfig ?? undefined));
-              setDirty(false);
-            }}
-            disabled={saving || !dirty}
-          >
-            Discard
-          </Button>
-          <Button variant="primary" onClick={handleSave} disabled={saving || loading}>
-            {saving ? "Saving…" : "Save changes"}
-          </Button>
-        </div>
-      </Card>
+    <div className="space-y-6" data-tour="site-editor">
+      <PageHeader
+        kicker="CMS"
+        title="Site Editor"
+        description={
+          activeMarketplace?.name
+            ? `Configure the clientfront homepage for ${activeMarketplace.name}.`
+            : "Configure the clientfront homepage for your organization."
+        }
+        actions={
+          <div className="flex items-center gap-2">
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setDraft(normalizeConfig(serverConfig ?? undefined));
+                setDirty(false);
+              }}
+              disabled={saving || !dirty}
+            >
+              Discard
+            </Button>
+            <Button variant="primary" onClick={handleSave} disabled={saving || loading}>
+              {saving ? "Saving…" : "Save changes"}
+            </Button>
+          </div>
+        }
+      />
 
       {siteEditorSwr.error ? (
         <Card className="border-rose-200 bg-rose-50 text-rose-900">
@@ -179,34 +182,78 @@ export function SiteEditorScreen() {
           </Card>
 
           <Card>
-            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-500">Hero banner</p>
+            <Text variant="kicker">Hero banner</Text>
             {loading ? (
               <div className="mt-4 space-y-3">
                 <Skeleton className="h-11 w-full" />
                 <Skeleton className="h-11 w-full" />
               </div>
             ) : (
-              <div className="mt-4 space-y-3">
-                <Input
-                  value={config.hero_banner?.title ?? ""}
-                  onChange={(e) => updateConfig({ ...config, hero_banner: { ...(config.hero_banner ?? {}), title: e.target.value } })}
-                  placeholder="Hero title"
-                />
-                <Input
-                  value={config.hero_banner?.subtitle ?? ""}
-                  onChange={(e) => updateConfig({ ...config, hero_banner: { ...(config.hero_banner ?? {}), subtitle: e.target.value } })}
-                  placeholder="Hero subtitle"
-                />
-                <Input
-                  value={config.hero_banner?.cta_text ?? ""}
-                  onChange={(e) => updateConfig({ ...config, hero_banner: { ...(config.hero_banner ?? {}), cta_text: e.target.value } })}
-                  placeholder="CTA text"
-                />
-                <Input
-                  value={config.hero_banner?.cta_href ?? ""}
-                  onChange={(e) => updateConfig({ ...config, hero_banner: { ...(config.hero_banner ?? {}), cta_href: e.target.value } })}
-                  placeholder="CTA link (e.g. /products)"
-                />
+              <div className="mt-4 space-y-4">
+                <FormField label="Hero title" hint="Shown as the main headline on the storefront homepage.">
+                  {({ id, describedBy }) => (
+                    <Input
+                      id={id}
+                      aria-describedby={describedBy}
+                      value={config.hero_banner?.title ?? ""}
+                      onChange={(e) =>
+                        updateConfig({ ...config, hero_banner: { ...(config.hero_banner ?? {}), title: e.target.value } })
+                      }
+                      placeholder="Welcome"
+                    />
+                  )}
+                </FormField>
+
+                <FormField label="Hero subtitle" hint="Optional supporting line below the hero title.">
+                  {({ id, describedBy }) => (
+                    <Input
+                      id={id}
+                      aria-describedby={describedBy}
+                      value={config.hero_banner?.subtitle ?? ""}
+                      onChange={(e) =>
+                        updateConfig({
+                          ...config,
+                          hero_banner: { ...(config.hero_banner ?? {}), subtitle: e.target.value },
+                        })
+                      }
+                      placeholder="Explore the latest inventory."
+                    />
+                  )}
+                </FormField>
+
+                <FormField label="CTA text" hint="Optional button label that links to the CTA href.">
+                  {({ id, describedBy }) => (
+                    <Input
+                      id={id}
+                      aria-describedby={describedBy}
+                      value={config.hero_banner?.cta_text ?? ""}
+                      onChange={(e) =>
+                        updateConfig({
+                          ...config,
+                          hero_banner: { ...(config.hero_banner ?? {}), cta_text: e.target.value },
+                        })
+                      }
+                      placeholder="Shop now"
+                    />
+                  )}
+                </FormField>
+
+                <FormField label="CTA link" hint="Optional. Example: /products">
+                  {({ id, describedBy }) => (
+                    <Input
+                      id={id}
+                      aria-describedby={describedBy}
+                      value={config.hero_banner?.cta_href ?? ""}
+                      onChange={(e) =>
+                        updateConfig({
+                          ...config,
+                          hero_banner: { ...(config.hero_banner ?? {}), cta_href: e.target.value },
+                        })
+                      }
+                      placeholder="/products"
+                    />
+                  )}
+                </FormField>
                 <MediaUploadField
                   label="Hero image"
                   hint="Uploaded to Cloudinary and stored as versioned media metadata in the homepage config."
@@ -316,7 +363,7 @@ export function SiteEditorScreen() {
           </Card>
 
           <Card>
-            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-500">Promotional blocks</p>
+            <Text variant="kicker">Promotional blocks</Text>
             <div className="mt-4 space-y-3">
               {(config.promotional_blocks ?? []).map((block, idx) => (
                 <div key={idx} className="rounded-2xl border border-slate-200 bg-white p-4">
@@ -334,34 +381,54 @@ export function SiteEditorScreen() {
                       Remove
                     </Button>
                   </div>
-                  <div className="mt-3 space-y-2">
-                    <Input
-                      value={block.title}
-                      onChange={(e) => {
-                        const next = [...(config.promotional_blocks ?? [])];
-                        next[idx] = { ...block, title: e.target.value };
-                        updateConfig({ ...config, promotional_blocks: next });
-                      }}
-                      placeholder="Title"
-                    />
-                    <Input
-                      value={block.body ?? ""}
-                      onChange={(e) => {
-                        const next = [...(config.promotional_blocks ?? [])];
-                        next[idx] = { ...block, body: e.target.value };
-                        updateConfig({ ...config, promotional_blocks: next });
-                      }}
-                      placeholder="Body"
-                    />
-                    <Input
-                      value={block.href ?? ""}
-                      onChange={(e) => {
-                        const next = [...(config.promotional_blocks ?? [])];
-                        next[idx] = { ...block, href: e.target.value };
-                        updateConfig({ ...config, promotional_blocks: next });
-                      }}
-                      placeholder="Link (e.g. /products)"
-                    />
+                  <div className="mt-4 space-y-4">
+                    <FormField label="Title" hint="Short headline shown on the promotional card.">
+                      {({ id, describedBy }) => (
+                        <Input
+                          id={id}
+                          aria-describedby={describedBy}
+                          value={block.title}
+                          onChange={(e) => {
+                            const next = [...(config.promotional_blocks ?? [])];
+                            next[idx] = { ...block, title: e.target.value };
+                            updateConfig({ ...config, promotional_blocks: next });
+                          }}
+                          placeholder="Promotion"
+                        />
+                      )}
+                    </FormField>
+
+                    <FormField label="Body" hint="Optional supporting copy displayed below the title.">
+                      {({ id, describedBy }) => (
+                        <Input
+                          id={id}
+                          aria-describedby={describedBy}
+                          value={block.body ?? ""}
+                          onChange={(e) => {
+                            const next = [...(config.promotional_blocks ?? [])];
+                            next[idx] = { ...block, body: e.target.value };
+                            updateConfig({ ...config, promotional_blocks: next });
+                          }}
+                          placeholder="Tell shoppers what’s new."
+                        />
+                      )}
+                    </FormField>
+
+                    <FormField label="Link" hint="Optional. Example: /products">
+                      {({ id, describedBy }) => (
+                        <Input
+                          id={id}
+                          aria-describedby={describedBy}
+                          value={block.href ?? ""}
+                          onChange={(e) => {
+                            const next = [...(config.promotional_blocks ?? [])];
+                            next[idx] = { ...block, href: e.target.value };
+                            updateConfig({ ...config, promotional_blocks: next });
+                          }}
+                          placeholder="/products"
+                        />
+                      )}
+                    </FormField>
                     <MediaUploadField
                       label={`Promotional image ${idx + 1}`}
                       hint="CDN-served artwork for this promotional card."
@@ -403,7 +470,7 @@ export function SiteEditorScreen() {
               {config.layout_order.map((section) => {
                 if (section === "hero_banner") {
                   return (
-                    <section key={section} className="rounded-3xl border border-slate-200 bg-white p-6">
+                    <section key={section} className="rounded-2xl border border-slate-200 bg-white p-6">
                       <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
                         <div>
                           <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Hero</p>
@@ -430,7 +497,7 @@ export function SiteEditorScreen() {
 
                 if (section === "featured_products") {
                   return (
-                    <section key={section} className="rounded-3xl border border-slate-200 bg-white p-6">
+                    <section key={section} className="rounded-2xl border border-slate-200 bg-white p-6">
                       <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Featured products</p>
                       <div className="mt-4 grid gap-3 md:grid-cols-2">
                         {(config.featured_products ?? []).map((id) => {
@@ -456,7 +523,7 @@ export function SiteEditorScreen() {
 
                 if (section === "featured_listings") {
                   return (
-                    <section key={section} className="rounded-3xl border border-slate-200 bg-white p-6">
+                    <section key={section} className="rounded-2xl border border-slate-200 bg-white p-6">
                       <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Featured listings</p>
                       <div className="mt-4 space-y-2">
                         {(config.featured_listings ?? []).map((id) => {
@@ -482,7 +549,7 @@ export function SiteEditorScreen() {
 
                 if (section === "categories") {
                   return (
-                    <section key={section} className="rounded-3xl border border-slate-200 bg-white p-6">
+                    <section key={section} className="rounded-2xl border border-slate-200 bg-white p-6">
                       <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Categories</p>
                       <div className="mt-4 flex flex-wrap gap-2">
                         {(config.categories ?? []).map((code) => (
@@ -500,7 +567,7 @@ export function SiteEditorScreen() {
 
                 if (section === "promotional_blocks") {
                   return (
-                    <section key={section} className="rounded-3xl border border-slate-200 bg-white p-6">
+                    <section key={section} className="rounded-2xl border border-slate-200 bg-white p-6">
                       <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Promotions</p>
                       <div className="mt-4 grid gap-3 md:grid-cols-2">
                         {(config.promotional_blocks ?? []).map((block, idx) => (

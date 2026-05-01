@@ -37,23 +37,23 @@ def seed_marketplace_membership!(user:, marketplace:, role:)
 end
 
 def seed_listing!(marketplace:, sku_prefix:, category_code:, category_name:)
-  apparel = seed_product_type!(code: "apparel", name: "Apparel")
+  clothing = seed_product_type!(code: "clothing", name: "Clothing")
 
-  category = Category.kept.find_or_create_by!(code: category_code) do |record|
+  category = Category.kept.find_or_create_by!(product_type: clothing, code: category_code) do |record|
     record.name = category_name
   end
 
   product = Product.kept.find_or_create_by!(sku: "#{sku_prefix}-PRODUCT") do |record|
     record.name = "#{sku_prefix} Product"
-    record.product_type = apparel
+    record.product_type = clothing
     record.category = category
-    record.metadata = { seeded: true, org: sku_prefix.downcase }
+    record.metadata = { brand: sku_prefix, material: "Cotton", fit: "Regular" }
   end
 
   variant = Variant.kept.find_or_create_by!(sku: "#{sku_prefix}-VARIANT") do |record|
     record.product = product
     record.name = "#{sku_prefix} Variant"
-    record.options = { source: "seed", size: "M", color: "Black" }
+    record.options = { size: "M", color: "Black" }
   end
 
   Listing.kept.find_or_create_by!(marketplace: marketplace, variant: variant) do |record|
@@ -71,8 +71,29 @@ def seed_product_type!(code:, name:)
   end
 end
 
-def seed_category!(code:, name:, parent: nil)
-  Category.kept.find_or_create_by!(code: code) do |record|
+def seed_catalog_attribute!(code:, name:, data_type:, description: nil)
+  attr = CatalogAttribute.kept.find_or_initialize_by(code: code)
+  attr.name = name
+  attr.data_type = data_type
+  attr.description = description
+  attr.save! if attr.changed?
+  attr
+end
+
+def seed_product_type_attribute!(product_type:, attribute:, required:, variant_level:, position:, config: {})
+  record = ProductTypeAttribute.kept.find_or_initialize_by(product_type: product_type, attribute_id: attribute.id)
+  record.required = required
+  record.variant_level = variant_level
+  record.position = position
+  record.config = config
+  record.save! if record.changed?
+  record
+end
+
+def seed_category!(product_type:, code:, name:, parent: nil)
+  resolved_product_type = parent&.product_type || product_type
+
+  Category.kept.find_or_create_by!(product_type: resolved_product_type, code: code) do |record|
     record.name = name
     record.parent = parent
   end
@@ -83,11 +104,11 @@ def seed_admin_settings!(organization:, settings:)
 end
 
 def seed_apparel_product!(sku:, name:, category:, metadata:)
-  apparel = seed_product_type!(code: "apparel", name: "Apparel")
+  clothing = seed_product_type!(code: "clothing", name: "Clothing")
 
   Product.kept.find_or_create_by!(sku: sku) do |record|
     record.name = name
-    record.product_type = apparel
+    record.product_type = clothing
     record.category = category
     record.metadata = metadata
   end
@@ -240,24 +261,50 @@ seed_listing!(marketplace: marketplace_b, sku_prefix: "ORGB", category_code: "or
 seed_listing!(marketplace: marketplace_c, sku_prefix: "ORGC", category_code: "org_c_category", category_name: "Org C Category")
 
 # Default admin taxonomy required for listing creation.
-seed_product_type!(code: "clothing", name: "Clothing")
+clothing = seed_product_type!(code: "clothing", name: "Clothing")
 seed_product_type!(code: "electronics", name: "Electronics")
 seed_product_type!(code: "grocery", name: "Grocery")
 
-seed_category!(code: "men", name: "Men")
-seed_category!(code: "women", name: "Women")
-seed_category!(code: "kids", name: "Kids")
-seed_category!(code: "t_shirts", name: "T-Shirts")
-seed_category!(code: "shirts", name: "Shirts")
-seed_category!(code: "jeans", name: "Jeans")
+brand = seed_catalog_attribute!(code: "brand", name: "Brand", data_type: "string")
+material = seed_catalog_attribute!(code: "material", name: "Material", data_type: "string")
+fit = seed_catalog_attribute!(code: "fit", name: "Fit", data_type: "enum")
+size = seed_catalog_attribute!(code: "size", name: "Size", data_type: "enum")
+color = seed_catalog_attribute!(code: "color", name: "Color", data_type: "string")
+
+seed_product_type_attribute!(product_type: clothing, attribute: brand, required: false, variant_level: false, position: 10)
+seed_product_type_attribute!(product_type: clothing, attribute: material, required: false, variant_level: false, position: 20)
+seed_product_type_attribute!(
+  product_type: clothing,
+  attribute: fit,
+  required: false,
+  variant_level: false,
+  position: 30,
+  config: { allowed_values: %w[Regular Slim Relaxed] }
+)
+seed_product_type_attribute!(
+  product_type: clothing,
+  attribute: size,
+  required: true,
+  variant_level: true,
+  position: 10,
+  config: { allowed_values: %w[XS S M L XL XXL] }
+)
+seed_product_type_attribute!(product_type: clothing, attribute: color, required: true, variant_level: true, position: 20)
+
+seed_category!(product_type: clothing, code: "men", name: "Men")
+seed_category!(product_type: clothing, code: "women", name: "Women")
+seed_category!(product_type: clothing, code: "kids", name: "Kids")
+seed_category!(product_type: clothing, code: "t_shirts", name: "T-Shirts")
+seed_category!(product_type: clothing, code: "shirts", name: "Shirts")
+seed_category!(product_type: clothing, code: "jeans", name: "Jeans")
 
 # India-focused apparel taxonomy + a multi-variant product to exercise PDP + cart.
-men = seed_category!(code: "men", name: "Men")
-women = seed_category!(code: "women", name: "Women")
-kids = seed_category!(code: "kids", name: "Kids")
+men = seed_category!(product_type: clothing, code: "men", name: "Men")
+women = seed_category!(product_type: clothing, code: "women", name: "Women")
+kids = seed_category!(product_type: clothing, code: "kids", name: "Kids")
 
-men_tshirts = seed_category!(code: "men_tshirts", name: "T-Shirts", parent: men)
-women_dresses = seed_category!(code: "women_dresses", name: "Dresses", parent: women)
+men_tshirts = seed_category!(product_type: clothing, code: "men_tshirts", name: "T-Shirts", parent: men)
+women_dresses = seed_category!(product_type: clothing, code: "women_dresses", name: "Dresses", parent: women)
 
 cotton_tee = seed_apparel_product!(
   sku: "TEE-COTTON-001",
@@ -279,7 +326,7 @@ tee_variants = [
     product: cotton_tee,
     sku: sku,
     name: "#{attrs.fetch(:size)} / #{attrs.fetch(:color)}",
-    options: { size: attrs.fetch(:size), color: attrs.fetch(:color), fabric: "Cotton" }
+    options: { size: attrs.fetch(:size), color: attrs.fetch(:color) }
   )
 end
 

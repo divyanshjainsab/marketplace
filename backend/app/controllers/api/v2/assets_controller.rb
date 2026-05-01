@@ -33,6 +33,16 @@ module Api
           is_promo_template: ActiveModel::Type::Boolean.new.cast(asset_params[:is_promo_template])
         )
 
+        audit_log!(
+          action: "asset.create",
+          resource: asset,
+          changes: asset.previous_changes,
+          metadata: {
+            market_place_id: current_marketplace.id,
+            public: ActiveModel::Type::Boolean.new.cast(params[:public])
+          }
+        )
+
         render json: render_asset(asset), status: :created
       end
 

@@ -22,7 +22,7 @@ module Carts
         raise ActiveRecord::RecordInvalid.new(item)
       end
 
-      listing = Listing.kept.find_by!(marketplace_id: @cart.marketplace_id, variant_id: @variant_id)
+      listing = Listing.kept.includes(:inventory).find_by!(marketplace_id: @cart.marketplace_id, variant_id: @variant_id)
       ensure_listing_is_available!(listing)
       ensure_inventory_allows!(listing, item)
 
@@ -42,7 +42,7 @@ module Carts
     end
 
     def ensure_inventory_allows!(listing, item)
-      available = listing.inventory_count.to_i
+      available = listing.inventory_on_hand.to_i
       return if available >= item.quantity
 
       item.errors.add(:quantity, "exceeds available inventory")
@@ -50,4 +50,3 @@ module Carts
     end
   end
 end
-

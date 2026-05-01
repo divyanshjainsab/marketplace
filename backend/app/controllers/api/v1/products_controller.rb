@@ -110,7 +110,10 @@ module Api
             uploaded_file: image,
             folder: folder,
             tags: tags,
-            delete_old: true
+            delete_old: true,
+            organization_id: organization.id,
+            marketplace_id: Current.marketplace&.id,
+            request_host: Current.request_host
           )
           return
         end
@@ -122,7 +125,10 @@ module Api
           record: product,
           asset_payload: image_data,
           folder_prefix: folder,
-          delete_old: true
+          delete_old: true,
+          organization_id: organization.id,
+          marketplace_id: Current.marketplace&.id,
+          request_host: Current.request_host
         )
       end
 

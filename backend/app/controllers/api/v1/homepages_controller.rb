@@ -7,11 +7,9 @@ module Api
 
         organization = marketplace.organization
 
-        raw_config = Rails.cache.fetch(cache_key(organization), expires_in: 60) do
-          organization.homepage_config || {}
+        config = TenantCache.fetch(namespace: "homepage_config", key: "sanitized", organization: organization, expires_in: 60) do
+          SiteEditor::HomepageConfigSanitizer.call(raw: organization.homepage_config || {}, organization: organization)
         end
-
-        config = SiteEditor::HomepageConfigSanitizer.call(raw: raw_config, organization: organization)
 
         featured_products = resolve_products(config["featured_products"])
         featured_listings = resolve_listings(marketplace, config["featured_listings"])
@@ -46,10 +44,6 @@ module Api
 
       private
 
-      def cache_key(organization)
-        "homepage_config:org:#{organization.id}"
-      end
-
       def resolve_products(ids)
         ids = Array(ids).map(&:to_i).select(&:positive?).uniq
         return [] if ids.empty?
@@ -68,7 +62,7 @@ module Api
         ids = Array(ids).map(&:to_i).select(&:positive?).uniq
         return [] if ids.empty?
 
-        listings = Listing.kept.where(marketplace_id: marketplace.id, id: ids).includes(:product, :variant).to_a
+        listings = Listing.kept.where(marketplace_id: marketplace.id, id: ids).includes(:inventory, :product, :variant).to_a
         listings.sort_by { |l| ids.index(l.id) || ids.length }
       end
 

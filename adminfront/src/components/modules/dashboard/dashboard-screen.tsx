@@ -5,7 +5,9 @@ import { clientApiFetch } from "@/lib/client-api";
 import type { DashboardResponse } from "@/lib/types";
 import { useWorkspace } from "@/components/providers/workspace-provider";
 import { Card } from "@/components/ui/card";
+import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Text } from "@/components/ui/typography";
 
 function formatCount(value: number) {
   return new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(value);
@@ -24,33 +26,35 @@ export function DashboardScreen() {
 
   return (
     <div className="space-y-6" data-tour="dashboard">
-      <Card className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Dashboard</p>
-          <h1 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">
-            {loading ? "Loading your workspace…" : payload?.organization?.name ?? "Organization"}
-          </h1>
-          <p className="mt-2 text-sm text-slate-600">
-            {loading ? "Fetching organization-scoped stats." : `This is your store: ${payload?.marketplace?.name ?? activeMarketplace?.name ?? "Store"}.`}
-          </p>
-        </div>
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-          <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Marketplace</p>
-          {loading ? (
-            <div className="mt-2 space-y-2">
-              <Skeleton className="h-4 w-40" />
-              <Skeleton className="h-4 w-56" />
-            </div>
-          ) : (
-            <div className="mt-2 space-y-1">
-              <p className="font-semibold">{payload?.marketplace_status?.name ?? payload?.marketplace?.name}</p>
-              <p className="text-xs text-slate-500">
-                {payload?.marketplace_status?.custom_domain ?? payload?.marketplace?.custom_domain ?? "—"}
-              </p>
-            </div>
-          )}
-        </div>
-      </Card>
+      <PageHeader
+        kicker="Dashboard"
+        title={loading ? "Loading your workspace…" : payload?.organization?.name ?? "Organization"}
+        description={
+          loading
+            ? "Fetching organization-scoped stats."
+            : `This is your store: ${payload?.marketplace?.name ?? activeMarketplace?.name ?? "Store"}.`
+        }
+        actions={
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+            <Text variant="kicker" className="text-slate-500">
+              Marketplace
+            </Text>
+            {loading ? (
+              <div className="mt-2 space-y-2">
+                <Skeleton className="h-4 w-40" />
+                <Skeleton className="h-4 w-56" />
+              </div>
+            ) : (
+              <div className="mt-2 space-y-1">
+                <p className="font-semibold">{payload?.marketplace_status?.name ?? payload?.marketplace?.name}</p>
+                <p className="text-xs text-slate-500">
+                  {payload?.marketplace_status?.custom_domain ?? payload?.marketplace?.custom_domain ?? "—"}
+                </p>
+              </div>
+            )}
+          </div>
+        }
+      />
 
       {dashboardSwr.error ? (
         <Card className="border-rose-200 bg-rose-50 text-rose-900">

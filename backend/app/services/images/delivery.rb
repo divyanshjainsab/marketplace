@@ -51,6 +51,10 @@ module Images
       )
 
       raw.is_a?(Array) ? raw.first : raw
+    rescue StandardError => e
+      return nil if defined?(CloudinaryException) && e.is_a?(CloudinaryException)
+
+      raise
     end
 
     def urls(public_id:, version:, optimized_url: nil)

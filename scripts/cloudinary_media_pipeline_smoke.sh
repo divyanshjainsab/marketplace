@@ -3,8 +3,8 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-BACKEND_BASE="${BACKEND_BASE:-http://localhost:3015}"
-SSO_BASE="${SSO_BASE:-http://localhost:3001}"
+BACKEND_BASE="${BACKEND_BASE:-http://localhost:3001}"
+SSO_BASE="${SSO_BASE:-http://localhost:3003}"
 ADMINFRONT_BASE="${ADMINFRONT_BASE:-http://localhost:3000}"
 CLIENTFRONT_BASE="${CLIENTFRONT_BASE:-http://localhost:3002}"
 PASSWORD="${SEED_PASSWORD:-Password123!}"
@@ -133,22 +133,16 @@ context_payload="$(
 
 marketplace_id="$(printf "%s" "$context_payload" | json_get "data.marketplaces.0.id")"
 marketplace_custom_domain="$(printf "%s" "$context_payload" | json_get "data.marketplaces.0.custom_domain")"
-category_id="$(
+categories_payload="$(
   curl -sS \
     -b "$jar_admin" -c "$jar_admin" \
     -H "Accept: application/json" \
     -H "X-Forwarded-Host: ${marketplace_custom_domain}" \
     -H "X-Forwarded-Port: ${marketplace_custom_domain##*:}" \
-    "${BACKEND_BASE}/api/v1/categories?per_page=1" | json_get "data.0.id"
+    "${BACKEND_BASE}/api/v1/categories?per_page=1"
 )"
-product_type_id="$(
-  curl -sS \
-    -b "$jar_admin" -c "$jar_admin" \
-    -H "Accept: application/json" \
-    -H "X-Forwarded-Host: ${marketplace_custom_domain}" \
-    -H "X-Forwarded-Port: ${marketplace_custom_domain##*:}" \
-    "${BACKEND_BASE}/api/v1/product_types?per_page=1" | json_get "data.0.id"
-)"
+category_id="$(printf "%s" "$categories_payload" | json_get "data.0.id")"
+product_type_id="$(printf "%s" "$categories_payload" | json_get "data.0.product_type_id")"
 
 if [[ -z "$marketplace_id" || -z "$marketplace_custom_domain" || -z "$category_id" || -z "$product_type_id" ]]; then
   echo "Missing required seed data" >&2
@@ -206,6 +200,10 @@ payload = {
         "price_cents": 219900,
         "currency": "INR",
         "status": "active",
+        "variant_options": {
+            "size": "M",
+            "color": "Black",
+        },
         "image_data": json.loads(os.environ["LISTING_ASSET_JSON"])["data"],
         "product": {
             "name": os.environ["PRODUCT_NAME"],

@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { TOUR_STEPS, TOUR_VERSION, type TourStep } from "@/components/tour/tour";
 import { useWorkspace } from "@/components/providers/workspace-provider";
@@ -37,19 +37,53 @@ function writeCompletion(orgId: number, completed: boolean) {
   }
 }
 
-function useHighlightRect(selector: string) {
+function useHighlightRect(selector: string, active: boolean) {
   const [rect, setRect] = useState<DOMRect | null>(null);
 
   useEffect(() => {
+    if (!active || !selector) {
+      setRect(null);
+      return;
+    }
+
     let frame = 0;
+    let autoScrollAttempted = false;
 
     function update() {
-      const el = document.querySelector(selector) as HTMLElement | null;
+      const candidates = Array.from(document.querySelectorAll(selector)) as HTMLElement[];
+      const el = candidates.find((candidate) => {
+        const box = candidate.getBoundingClientRect();
+        if (box.width <= 0 && box.height <= 0) return false;
+        const styles = window.getComputedStyle(candidate);
+        if (styles.display === "none" || styles.visibility === "hidden") return false;
+        return true;
+      });
+
       if (!el) {
         setRect(null);
         return;
       }
-      setRect(el.getBoundingClientRect());
+
+      const box = el.getBoundingClientRect();
+
+      if (!autoScrollAttempted) {
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+        const offscreen =
+          box.bottom < 0 || box.top > viewportHeight || box.right < 0 || box.left > viewportWidth;
+
+        if (offscreen) {
+          autoScrollAttempted = true;
+          try {
+            el.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
+          } catch {
+            el.scrollIntoView();
+          }
+          return;
+        }
+      }
+
+      setRect(box);
     }
 
     function schedule() {
@@ -66,7 +100,7 @@ function useHighlightRect(selector: string) {
       window.removeEventListener("resize", schedule);
       window.removeEventListener("scroll", schedule, true);
     };
-  }, [selector]);
+  }, [active, selector]);
 
   return rect;
 }
@@ -88,20 +122,76 @@ function Tooltip({
   canGoBack: boolean;
   isLast: boolean;
 }) {
-  const viewportWidth = typeof window === "undefined" ? 1024 : window.innerWidth;
-  const viewportHeight = typeof window === "undefined" ? 768 : window.innerHeight;
+  const tooltipRef = useRef<HTMLDivElement | null>(null);
+  const [style, setStyle] = useState<React.CSSProperties>(() => ({ left: 16, top: 120 }));
 
-  const anchorLeft = rect ? Math.max(16, Math.min(rect.left + rect.width / 2, viewportWidth - 16)) : viewportWidth / 2;
-  const anchorTop = rect ? rect.bottom + 12 : 120;
-  const style: React.CSSProperties = {
-    left: anchorLeft,
-    top: Math.min(anchorTop, viewportHeight - 16),
-    transform: "translateX(-50%)",
-  };
+  useLayoutEffect(() => {
+    const el = tooltipRef.current;
+    if (!el) return;
+
+    const margin = 16;
+    const gap = 12;
+
+    function compute() {
+      const tooltipEl = tooltipRef.current;
+      if (!tooltipEl) return;
+
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      const box = tooltipEl.getBoundingClientRect();
+      const width = box.width;
+      const height = box.height;
+
+      const rectUsable = rect && rect.width > 0 && rect.height > 0 ? rect : null;
+
+      const preferredLeft = rectUsable ? rectUsable.left + rectUsable.width / 2 - width / 2 : (viewportWidth - width) / 2;
+      const left = Math.max(margin, Math.min(preferredLeft, viewportWidth - margin - width));
+
+      const maxTop = Math.max(margin, viewportHeight - margin - height);
+      const clampTop = (value: number) => Math.max(margin, Math.min(value, maxTop));
+
+      let top = 120;
+      if (rectUsable) {
+        const below = rectUsable.bottom + gap;
+        const above = rectUsable.top - gap - height;
+        const fitsBelow = below >= margin && below + height + margin <= viewportHeight;
+        const fitsAbove = above >= margin && above + height + margin <= viewportHeight;
+
+        if (fitsBelow) top = below;
+        else if (fitsAbove) top = above;
+        else {
+          const clampedBelow = clampTop(below);
+          const clampedAbove = clampTop(above);
+          top = rectUsable.top > viewportHeight / 2 ? clampedAbove : clampedBelow;
+        }
+      } else {
+        top = clampTop(top);
+      }
+
+      setStyle({ left, top });
+    }
+
+    compute();
+    window.addEventListener("resize", compute);
+    window.addEventListener("scroll", compute, true);
+
+    const resizeObserver = new ResizeObserver(() => compute());
+    resizeObserver.observe(el);
+
+    return () => {
+      window.removeEventListener("resize", compute);
+      window.removeEventListener("scroll", compute, true);
+      resizeObserver.disconnect();
+    };
+  }, [rect, step.body, step.title]);
 
   return (
-    <div className="pointer-events-auto fixed z-[1001] w-[min(420px,calc(100vw-2rem))]" style={style}>
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
+    <div
+      ref={tooltipRef}
+      className="pointer-events-auto fixed z-[1001] w-[min(420px,calc(100vw-2rem))] max-h-[calc(100dvh-2rem)] overflow-auto"
+      style={style}
+    >
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl">
         <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-500">Onboarding</p>
         <h3 className="mt-2 text-lg font-semibold text-slate-950">{step.title}</h3>
         <p className="mt-2 text-sm leading-6 text-slate-700">{step.body}</p>
@@ -175,7 +265,7 @@ export function TourProvider({ children }: React.PropsWithChildren) {
   const orgId = adminContext?.organization?.id ?? null;
   const step = TOUR_STEPS[index] ?? null;
 
-  const rect = useHighlightRect(step?.selector ?? "");
+  const rect = useHighlightRect(step?.selector ?? "", status === "running");
 
   const stop = useCallback(() => {
     setStatus("idle");

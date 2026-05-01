@@ -2,11 +2,13 @@ class ApplicationController < ActionController::API
   include PaperTrail::Rails::Controller
   include Pundit::Authorization
 
+  before_action :initialize_audit_enforcement
   before_action :restore_current_context
   before_action :resolve_current_marketplace!
   before_action :verify_frontend_proxy_for_unsafe_requests
   before_action :set_current_tenant
   before_action :set_paper_trail_whodunnit
+  after_action :verify_audit_enforcement
   after_action :reset_current_tenant
   after_action :reset_current_context
 
@@ -23,6 +25,9 @@ class ApplicationController < ActionController::API
     Current.user = request.get_header("app.current_user")
     Current.session_org_id = request.get_header("app.session_org_id")
     Current.session_roles = request.get_header("app.session_roles")
+    Current.request_id = request.request_id
+    Current.remote_ip = request.remote_ip
+    Current.user_agent = request.user_agent.to_s.first(500)
   end
 
   def resolve_current_marketplace!
@@ -109,7 +114,7 @@ class ApplicationController < ActionController::API
     org_id = (Current.organization&.id || Current.org_id || Current.session_org_id).to_i
     return render_error("forbidden", status: :forbidden) if org_id <= 0
 
-    allowed = Rails.cache.fetch("rbac:org_admin:#{user.id}:#{org_id}", expires_in: 60) do
+    allowed = TenantCache.fetch(namespace: "rbac", key: "org_admin:user:#{user.id}", organization_id: org_id, expires_in: 60) do
       membership = OrganizationMembership.kept.find_by(user_id: user.id, organization_id: org_id)
       membership.present? && Rbac::Registry.rank_for(membership.role) >= Rbac::Registry.rank_for("admin")
     end
@@ -205,5 +210,46 @@ class ApplicationController < ActionController::API
     cookie_header = request.get_header("HTTP_COOKIE").to_s
     Auth::SessionCookies.read_from_cookie_header(cookie_header, name: Auth::SessionCookies::ACCESS_COOKIE).present? ||
       Auth::SessionCookies.read_from_cookie_header(cookie_header, name: Auth::SessionCookies::REFRESH_COOKIE).present?
+  end
+
+  def initialize_audit_enforcement
+    @audit_logged = false
+  end
+
+  def verify_audit_enforcement
+    return unless audit_enforcement_required?
+    return unless response.status.to_i < 400
+    return if @audit_logged
+
+    Rails.logger.error(
+      {
+        event: "audit.missing",
+        request_id: request.request_id,
+        method: request.request_method,
+        path: request.path,
+        organization_id: Current.organization&.id,
+        user_id: Current.user&.id
+      }.to_json
+    )
+
+    raise AuditLogger::MissingContextError, "Audit log missing for #{request.request_method} #{request.path}"
+  end
+
+  def audit_enforcement_required?
+    return false if request.get? || request.head? || request.options?
+
+    path = request.path.to_s
+    path.start_with?("/api/v1/admin") ||
+      path.start_with?("/api/v2/") ||
+      path == "/api/market_places" ||
+      path == "/api/market_place_options" ||
+      path.start_with?("/api/assets")
+  end
+
+  def audit_log!(action:, resource:, changes: nil, metadata: nil, organization: nil, user: nil)
+    @audit_logged = true
+    org = organization || Current.organization || Current.marketplace&.organization
+    actor = user || Current.user
+    AuditLogger.log(user: actor, org: org, action: action, resource: resource, changes: changes, metadata: metadata)
   end
 end

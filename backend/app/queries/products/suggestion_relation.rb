@@ -16,7 +16,7 @@ module Products
       end
 
       if @metadata_query.present?
-        scope = scope.where("products.metadata::text ILIKE ?", "%#{sanitize_like(@metadata_query)}%")
+        scope = scope.where("products.search_document @@ plainto_tsquery('simple', ?)", @metadata_query)
       end
 
       scope.limit(@limit.positive? ? @limit : DEFAULT_LIMIT)
@@ -28,8 +28,6 @@ module Products
       Products::ReusableRelation.call
     end
 
-    def sanitize_like(value)
-      ActiveRecord::Base.sanitize_sql_like(value)
-    end
+    # Avoid ILIKE scans; search_document is indexed via GIN.
   end
 end

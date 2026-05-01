@@ -29,7 +29,12 @@ module Middleware
         return unauthorized("invalid_session")
       end
 
-      session_record = Rails.cache.fetch("session:#{session_id}", expires_in: 5) do
+      session_record = TenantCache.fetch(
+        namespace: "auth_session",
+        key: "sid:#{session_id}",
+        organization_id: payload["org_id"],
+        expires_in: 5
+      ) do
         UserSession.active.find_by(id: session_id)
       end
       return unauthorized("session_revoked") if session_record.nil?
@@ -82,14 +87,20 @@ module Middleware
     end
 
     def public_endpoint?(request)
+      path = request.path.to_s
+
+      return true if path == "/api/cart" || path == "/api/v1/cart"
+      return true if path == "/api/cart/items" || path.start_with?("/api/cart/items/")
+      return true if path == "/api/v1/cart_items" || path.start_with?("/api/v1/cart_items/")
+
       return false unless request.get?
 
-      request.path.match?(%r{\A/api/v1/listings(?:/\d+)?\z}) ||
-        request.path == "/api/listings" ||
-        request.path == "/listings" ||
-        request.path == "/api/v1/session" ||
-        request.path == "/api/v1/me" ||
-        request.path == "/api/v1/homepage"
+      path.match?(%r{\A/api/v1/listings(?:/\d+)?\z}) ||
+        path == "/api/listings" ||
+        path == "/listings" ||
+        path == "/api/v1/session" ||
+        path == "/api/v1/me" ||
+        path == "/api/v1/homepage"
     end
 
     def unauthorized(code)

@@ -7,7 +7,12 @@ module Api
         end
 
         def show
-          data = Rails.cache.fetch(cache_key, expires_in: 15) do
+          data = TenantCache.fetch(
+            namespace: "admin_dashboard",
+            key: "marketplace:#{current_marketplace.id}",
+            organization: current_organization,
+            expires_in: 15
+          ) do
             build_dashboard
           end
 
@@ -15,10 +20,6 @@ module Api
         end
 
         private
-
-        def cache_key
-          "admin:dashboard:org:#{current_organization.id}:marketplace:#{current_marketplace.id}"
-        end
 
         def build_dashboard
           listings = Listing.kept

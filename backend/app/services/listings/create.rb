@@ -35,6 +35,7 @@ module Listings
           listing.product = product
           listing.assign_attributes(listing_attributes)
           listing.save!
+          update_inventory_if_requested!(listing)
           attach_listing_image(listing)
 
           Result.new(
@@ -81,7 +82,7 @@ module Listings
     end
 
     def listing_attributes
-      @params.slice(:price_cents, :currency, :status, :inventory_count)
+      @params.slice(:price_cents, :currency, :status)
     end
 
     def product_attributes
@@ -103,7 +104,10 @@ module Listings
           uploaded_file: image,
           folder: folder,
           tags: tags,
-          delete_old: true
+          delete_old: true,
+          organization_id: organization.id,
+          marketplace_id: @marketplace.id,
+          request_host: Current.request_host
         )
         return
       end
@@ -115,7 +119,10 @@ module Listings
         record: product,
         asset_payload: image_data,
         folder_prefix: folder,
-        delete_old: true
+        delete_old: true,
+        organization_id: organization.id,
+        marketplace_id: @marketplace.id,
+        request_host: Current.request_host
       )
     end
 
@@ -130,7 +137,10 @@ module Listings
           uploaded_file: image,
           folder: folder,
           tags: tags,
-          delete_old: true
+          delete_old: true,
+          organization_id: organization.id,
+          marketplace_id: @marketplace.id,
+          request_host: Current.request_host
         )
         return
       end
@@ -142,7 +152,10 @@ module Listings
         record: variant,
         asset_payload: image_data,
         folder_prefix: folder,
-        delete_old: true
+        delete_old: true,
+        organization_id: organization.id,
+        marketplace_id: @marketplace.id,
+        request_host: Current.request_host
       )
     end
 
@@ -157,7 +170,10 @@ module Listings
           uploaded_file: image,
           folder: folder,
           tags: tags,
-          delete_old: true
+          delete_old: true,
+          organization_id: organization.id,
+          marketplace_id: @marketplace.id,
+          request_host: Current.request_host
         )
         return
       end
@@ -169,12 +185,23 @@ module Listings
         record: listing,
         asset_payload: image_data,
         folder_prefix: folder,
-        delete_old: true
+        delete_old: true,
+        organization_id: organization.id,
+        marketplace_id: @marketplace.id,
+        request_host: Current.request_host
       )
     end
 
     def organization
       @organization ||= @marketplace.organization
+    end
+
+    def update_inventory_if_requested!(listing)
+      return unless @params.key?(:inventory_count)
+
+      inventory = listing.inventory || listing.build_inventory(marketplace: @marketplace)
+      inventory.quantity_on_hand = @params[:inventory_count].to_i
+      inventory.save!
     end
   end
 end

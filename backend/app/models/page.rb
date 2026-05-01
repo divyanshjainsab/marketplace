@@ -21,7 +21,13 @@ class Page < ApplicationRecord
   scope :templates, -> { kept.where(template: true) }
 
   def clear_cache
-    Rails.cache.delete_matched("site-editor:page:#{market_place_id}:#{slug}:*")
+    marketplace = market_place
+    return if marketplace.nil? || marketplace.organization_id.blank?
+
+    TenantCache.bump_namespace_version!(
+      organization_id: marketplace.organization_id,
+      namespace: "site_editor_page:marketplace:#{market_place_id}:slug:#{slug}"
+    )
   end
 
   def home?

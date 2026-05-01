@@ -4,6 +4,7 @@ class ProductSerializer < BaseSerializer
       id: record.id,
       name: record.name,
       sku: record.sku,
+      attributes: record.metadata,
       metadata: record.metadata,
       image_url: record.image_url,
       image: ImageAssetSerializer.one(record.image_asset),

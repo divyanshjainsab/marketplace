@@ -8,7 +8,7 @@ class ListingSerializer < BaseSerializer
       price_cents: record.price_cents,
       currency: record.currency,
       status: record.status,
-      inventory_count: record.inventory_count,
+      inventory_count: record.inventory_on_hand,
       image_url: image_asset&.dig(:optimized_url),
       image: ImageAssetSerializer.one(image_asset),
       image_source: record.effective_image_source,

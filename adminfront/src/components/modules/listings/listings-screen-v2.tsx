@@ -4,7 +4,7 @@ import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 import { ClientApiError, clientApiFetch } from "@/lib/client-api";
 import { CloudinaryImage } from "@/components/media/cloudinary-image";
-import { MediaUploadField } from "@/components/media/media-upload-field";
+import { MediaUploadGrid } from "@/components/media/media-upload-grid";
 import type {
   AdminSettingsResponse,
   AdminSharingScope,
@@ -19,9 +19,14 @@ import { useWorkspace } from "@/components/providers/workspace-provider";
 import { useToast } from "@/components/toast-provider";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
+import { ConfirmDialog } from "@/components/ui/modal";
+import { PageHeader } from "@/components/ui/page-header";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Table, Td, Th, Tr } from "@/components/ui/table";
+import { Heading, Text } from "@/components/ui/typography";
 
 type ListingFormState = {
   productName: string;
@@ -103,23 +108,6 @@ function sharingCopy(scope: AdminSharingScope | null) {
   }
 }
 
-function Field({
-  label,
-  hint,
-  error,
-  htmlFor,
-  children,
-}: React.PropsWithChildren<{ label: string; hint?: string; error?: string; htmlFor?: string }>) {
-  return (
-    <label htmlFor={htmlFor} className="block space-y-2">
-      <span className="block text-sm font-semibold text-slate-900">{label}</span>
-      {children}
-      {hint ? <span className="block text-xs leading-5 text-slate-500">{hint}</span> : null}
-      {error ? <span className="block text-sm text-rose-700">{error}</span> : null}
-    </label>
-  );
-}
-
 function validationErrorFor(error: unknown) {
   if (!(error instanceof ClientApiError)) {
     return {};
@@ -161,6 +149,7 @@ export function ListingsScreenV2() {
   const [submitting, setSubmitting] = useState(false);
   const [drafts, setDrafts] = useState<Record<number, ListingDraft>>({});
   const [mutatingListingId, setMutatingListingId] = useState<number | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Listing | null>(null);
 
   const key = useMemo(() => {
     if (!activeMarketplaceId) return null;
@@ -452,10 +441,6 @@ export function ListingsScreenV2() {
       return;
     }
 
-    if (!window.confirm(`Delete ${listing.product.name} / ${listing.variant.name}?`)) {
-      return;
-    }
-
     setMutatingListingId(listing.id);
 
     try {
@@ -477,37 +462,47 @@ export function ListingsScreenV2() {
     }
   }
 
+  async function confirmDeleteTarget() {
+    if (!deleteTarget) return;
+    await deleteListing(deleteTarget);
+    setDeleteTarget(null);
+  }
+
   return (
-    <div className="space-y-5" data-tour="listings">
-      <Card className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Store inventory</p>
-          <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">Listings</h1>
-          <p className="mt-2 max-w-2xl text-sm text-slate-600">
-            {activeMarketplace?.name ? `${activeMarketplace.name} listings, pricing, images, and catalog reuse.` : "Organization-scoped listings and pricing."}
-          </p>
-        </div>
-        <div className="flex flex-col gap-2 sm:flex-row">
+    <div className="space-y-6" data-tour="listings">
+      <PageHeader
+        kicker="Store inventory"
+        title="Listings"
+        description={
+          activeMarketplace?.name
+            ? `${activeMarketplace.name} listings, pricing, images, and catalog reuse.`
+            : "Organization-scoped listings and pricing."
+        }
+        actions={
           <Button variant="secondary" onClick={() => listingsSwr.mutate()} disabled={loading}>
             Refresh listings
           </Button>
-        </div>
-      </Card>
+        }
+      />
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.25fr)_minmax(0,0.85fr)]">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.25fr)_minmax(0,0.85fr)]">
         <Card>
-          <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Create listing</p>
-          <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">Publish inventory to this store</h2>
-          <p className="mt-2 text-sm text-slate-600">Every required field is labeled below, inline errors are shown immediately, and prices are enforced in INR.</p>
+          <Text variant="kicker">Create listing</Text>
+          <Heading as="h2" size="h2" className="mt-2">
+            Publish inventory to this store
+          </Heading>
+          <Text variant="muted" className="mt-2">
+            Every required field is labeled below, inline errors are shown immediately, and prices are enforced in INR.
+          </Text>
 
           {!loadingMetadata && (!categories.length || !productTypes.length) ? (
-            <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
               Categories and product types must exist before you can create a new product-backed listing. Add them from the Catalog page if this store is missing setup data.
             </div>
           ) : null}
 
           {errors.form ? (
-            <div className="mt-5 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">{errors.form}</div>
+            <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">{errors.form}</div>
           ) : null}
 
           <form
@@ -518,78 +513,99 @@ export function ListingsScreenV2() {
             }}
           >
             <section className="grid gap-4 md:grid-cols-2">
-              <Field
+              <FormField
                 label="Product name"
                 hint="Customer-facing name for the product that this listing belongs to."
                 error={errors.productName}
+                required
               >
-                <Input
-                  required
-                  value={form.productName}
-                  onChange={(event) => updateField("productName", event.target.value)}
-                  placeholder="Classic cotton tee"
-                  aria-invalid={Boolean(errors.productName)}
-                />
-              </Field>
+                {({ id, describedBy, invalid }) => (
+                  <Input
+                    id={id}
+                    required
+                    value={form.productName}
+                    onChange={(event) => updateField("productName", event.target.value)}
+                    placeholder="Classic cotton tee"
+                    aria-invalid={invalid}
+                    aria-describedby={describedBy}
+                  />
+                )}
+              </FormField>
 
-              <Field
+              <FormField
                 label="Product SKU"
                 hint="Use a stable unique SKU so this product can be reused safely later."
                 error={errors.productSku}
+                required
               >
-                <Input
-                  required
-                  value={form.productSku}
-                  onChange={(event) => updateField("productSku", event.target.value.toUpperCase())}
-                  placeholder="TEE-COTTON-001"
-                  aria-invalid={Boolean(errors.productSku)}
-                />
-              </Field>
+                {({ id, describedBy, invalid }) => (
+                  <Input
+                    id={id}
+                    required
+                    value={form.productSku}
+                    onChange={(event) => updateField("productSku", event.target.value.toUpperCase())}
+                    placeholder="TEE-COTTON-001"
+                    aria-invalid={invalid}
+                    aria-describedby={describedBy}
+                    autoCapitalize="characters"
+                  />
+                )}
+              </FormField>
             </section>
 
             {!reuseProductId ? (
               <section className="grid gap-4 md:grid-cols-2">
-                <Field
+                <FormField
                   label="Category"
                   hint="Categories power browsing and merchandising for this product."
                   error={errors.categoryId}
+                  required
                 >
-                  <Select
-                    required
-                    value={form.categoryId}
-                    onChange={(event) => updateField("categoryId", event.target.value)}
-                    aria-invalid={Boolean(errors.categoryId)}
-                    disabled={loadingMetadata}
-                  >
-                    <option value="">Select a category</option>
-                    {categories.map((category) => (
-                      <option key={category.id} value={category.id}>
-                        {category.name}
-                      </option>
-                    ))}
-                  </Select>
-                </Field>
+                  {({ id, describedBy, invalid }) => (
+                    <Select
+                      id={id}
+                      required
+                      value={form.categoryId}
+                      onChange={(event) => updateField("categoryId", event.target.value)}
+                      aria-invalid={invalid}
+                      aria-describedby={describedBy}
+                      disabled={loadingMetadata}
+                    >
+                      <option value="">Select a category</option>
+                      {categories.map((category) => (
+                        <option key={category.id} value={category.id}>
+                          {category.name}
+                        </option>
+                      ))}
+                    </Select>
+                  )}
+                </FormField>
 
-                <Field
+                <FormField
                   label="Product type"
                   hint="Choose the top-level product type used for reporting and taxonomy."
                   error={errors.productTypeId}
+                  required
                 >
-                  <Select
-                    required
-                    value={form.productTypeId}
-                    onChange={(event) => updateField("productTypeId", event.target.value)}
-                    aria-invalid={Boolean(errors.productTypeId)}
-                    disabled={loadingMetadata}
-                  >
-                    <option value="">Select a product type</option>
-                    {productTypes.map((productType) => (
-                      <option key={productType.id} value={productType.id}>
-                        {productType.name}
-                      </option>
-                    ))}
-                  </Select>
-                </Field>
+                  {({ id, describedBy, invalid }) => (
+                    <Select
+                      id={id}
+                      required
+                      value={form.productTypeId}
+                      onChange={(event) => updateField("productTypeId", event.target.value)}
+                      aria-invalid={invalid}
+                      aria-describedby={describedBy}
+                      disabled={loadingMetadata}
+                    >
+                      <option value="">Select a product type</option>
+                      {productTypes.map((productType) => (
+                        <option key={productType.id} value={productType.id}>
+                          {productType.name}
+                        </option>
+                      ))}
+                    </Select>
+                  )}
+                </FormField>
               </section>
             ) : (
               <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
@@ -598,128 +614,166 @@ export function ListingsScreenV2() {
             )}
 
             <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              <Field
+              <FormField
                 label="Variant size"
                 hint="Required for the sellable variant attached to this listing."
                 error={errors.size}
+                required
               >
-                <Input
-                  required
-                  value={form.size}
-                  onChange={(event) => updateField("size", event.target.value)}
-                  placeholder="M"
-                  aria-invalid={Boolean(errors.size)}
-                />
-              </Field>
+                {({ id, describedBy, invalid }) => (
+                  <Input
+                    id={id}
+                    required
+                    value={form.size}
+                    onChange={(event) => updateField("size", event.target.value)}
+                    placeholder="M"
+                    aria-invalid={invalid}
+                    aria-describedby={describedBy}
+                  />
+                )}
+              </FormField>
 
-              <Field
+              <FormField
                 label="Variant color"
                 hint="Use the customer-facing color name shown in inventory and orders."
                 error={errors.color}
+                required
               >
-                <Input
-                  required
-                  value={form.color}
-                  onChange={(event) => updateField("color", event.target.value)}
-                  placeholder="Black"
-                  aria-invalid={Boolean(errors.color)}
-                />
-              </Field>
+                {({ id, describedBy, invalid }) => (
+                  <Input
+                    id={id}
+                    required
+                    value={form.color}
+                    onChange={(event) => updateField("color", event.target.value)}
+                    placeholder="Black"
+                    aria-invalid={invalid}
+                    aria-describedby={describedBy}
+                  />
+                )}
+              </FormField>
 
-              <Field
+              <FormField
                 label="Variant SKU"
                 hint={`Variant label will be saved as ${variantDisplayName(form.size, form.color)}.`}
                 error={errors.variantSku}
+                required
               >
-                <Input
-                  required
-                  value={form.variantSku}
-                  onChange={(event) => updateField("variantSku", event.target.value.toUpperCase())}
-                  placeholder="TEE-COTTON-001-M-BLACK"
-                  aria-invalid={Boolean(errors.variantSku)}
-                />
-              </Field>
+                {({ id, describedBy, invalid }) => (
+                  <Input
+                    id={id}
+                    required
+                    value={form.variantSku}
+                    onChange={(event) => updateField("variantSku", event.target.value.toUpperCase())}
+                    placeholder="TEE-COTTON-001-M-BLACK"
+                    aria-invalid={invalid}
+                    aria-describedby={describedBy}
+                    autoCapitalize="characters"
+                  />
+                )}
+              </FormField>
             </section>
 
             <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <Field
+              <FormField
                 label="Price"
                 hint="Enter the selling price in INR. Decimals are supported."
                 error={errors.priceRupees}
+                required
               >
-                <Input
-                  required
-                  inputMode="decimal"
-                  value={form.priceRupees}
-                  onChange={(event) => updateField("priceRupees", event.target.value.replace(/[^\d.]/g, ""))}
-                  placeholder="799"
-                  aria-invalid={Boolean(errors.priceRupees)}
-                />
-              </Field>
+                {({ id, describedBy, invalid }) => (
+                  <Input
+                    id={id}
+                    required
+                    inputMode="decimal"
+                    value={form.priceRupees}
+                    onChange={(event) => updateField("priceRupees", event.target.value.replace(/[^\d.]/g, ""))}
+                    placeholder="799"
+                    aria-invalid={invalid}
+                    aria-describedby={describedBy}
+                  />
+                )}
+              </FormField>
 
-              <Field
+              <FormField
                 label="Inventory"
                 hint="Whole units currently available to sell."
                 error={errors.inventoryCount}
+                required
               >
-                <Input
-                  required
-                  inputMode="numeric"
-                  value={form.inventoryCount}
-                  onChange={(event) => updateField("inventoryCount", event.target.value.replace(/[^\d]/g, ""))}
-                  placeholder="20"
-                  aria-invalid={Boolean(errors.inventoryCount)}
-                />
-              </Field>
+                {({ id, describedBy, invalid }) => (
+                  <Input
+                    id={id}
+                    required
+                    inputMode="numeric"
+                    value={form.inventoryCount}
+                    onChange={(event) => updateField("inventoryCount", event.target.value.replace(/[^\d]/g, ""))}
+                    placeholder="20"
+                    aria-invalid={invalid}
+                    aria-describedby={describedBy}
+                  />
+                )}
+              </FormField>
 
-              <Field label="Currency" hint="Listings are locked to INR for consistency across the admin panel.">
-                <div className="flex h-11 items-center rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-700">
-                  INR (₹)
-                </div>
-              </Field>
+              <FormField label="Currency" hint="Listings are locked to INR for consistency across the admin panel.">
+                {({ id, describedBy }) => (
+                  <div
+                    id={id}
+                    aria-describedby={describedBy}
+                    className="flex h-11 items-center rounded-2xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-700"
+                  >
+                    INR (₹)
+                  </div>
+                )}
+              </FormField>
 
-              <Field label="Status" hint="Draft keeps the listing private until you are ready to publish it.">
-                <Select value={form.status} onChange={(event) => updateField("status", event.target.value)}>
-                  {STATUS_OPTIONS.map((status) => (
-                    <option key={status} value={status}>
-                      {status}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
+              <FormField label="Status" hint="Draft keeps the listing private until you are ready to publish it.">
+                {({ id, describedBy }) => (
+                  <Select id={id} value={form.status} onChange={(event) => updateField("status", event.target.value)} aria-describedby={describedBy}>
+                    {STATUS_OPTIONS.map((status) => (
+                      <option key={status} value={status}>
+                        {status}
+                      </option>
+                    ))}
+                  </Select>
+                )}
+              </FormField>
             </section>
 
-            <section className="grid gap-4 xl:grid-cols-3">
-              {!reuseProductId ? (
-                <MediaUploadField
-                  label="Product image"
-                  hint="Shared across every listing that reuses this product."
-                  target="product"
-                  marketplaceId={activeMarketplaceId}
-                  value={form.productImage}
-                  disabled={submitting}
-                  onChange={(asset) => updateField("productImage", asset)}
-                />
-              ) : null}
-
-              <MediaUploadField
-                label="Variant image"
-                hint="Best for color-specific or size-specific visuals."
-                target="variant"
+            <section className="space-y-2">
+              <Text variant="kicker">Images</Text>
+              <MediaUploadGrid
                 marketplaceId={activeMarketplaceId}
-                value={form.variantImage}
-                disabled={submitting}
-                onChange={(asset) => updateField("variantImage", asset)}
-              />
-
-              <MediaUploadField
-                label="Listing image override"
-                hint="This store-specific image wins over the variant and product images."
-                target="listing"
-                marketplaceId={activeMarketplaceId}
-                value={form.listingImage}
-                disabled={submitting}
-                onChange={(asset) => updateField("listingImage", asset)}
+                disabled={submitting || !activeMarketplaceId}
+                slots={[
+                  ...(!reuseProductId
+                    ? [
+                        {
+                          key: "productImage",
+                          label: "Product image",
+                          hint: "Shared across listings that reuse this product.",
+                          target: "product" as const,
+                          value: form.productImage,
+                          onChange: (asset: MediaAsset | null) => updateField("productImage", asset),
+                        },
+                      ]
+                    : []),
+                  {
+                    key: "variantImage",
+                    label: "Variant image",
+                    hint: "Best for color-specific or size-specific visuals.",
+                    target: "variant" as const,
+                    value: form.variantImage,
+                    onChange: (asset: MediaAsset | null) => updateField("variantImage", asset),
+                  },
+                  {
+                    key: "listingImage",
+                    label: "Listing image override",
+                    hint: "This store-specific image overrides the variant and product images.",
+                    target: "listing" as const,
+                    value: form.listingImage,
+                    onChange: (asset: MediaAsset | null) => updateField("listingImage", asset),
+                  },
+                ]}
               />
             </section>
 
@@ -740,11 +794,15 @@ export function ListingsScreenV2() {
         </Card>
 
         <Card className="bg-slate-50">
-          <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Product reuse</p>
-          <h2 className="mt-2 text-xl font-semibold tracking-tight text-slate-950">Suggestions and sharing mode</h2>
-          <p className="mt-2 text-sm text-slate-600">{sharingCopy(sharingScope)}</p>
+          <Text variant="kicker">Product reuse</Text>
+          <Heading as="h2" size="h3" className="mt-2">
+            Suggestions and sharing mode
+          </Heading>
+          <Text variant="muted" className="mt-2">
+            {sharingCopy(sharingScope)}
+          </Text>
 
-          <div className="mt-5 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+          <div className="mt-6 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
             <p className="font-semibold text-slate-900">Current search</p>
             <p className="mt-1 text-slate-600">{suggestionQuery || "Start typing a product name or SKU to load suggestions."}</p>
           </div>
@@ -764,7 +822,7 @@ export function ListingsScreenV2() {
                   key={suggestion.product_id}
                   type="button"
                   onClick={() => chooseSuggestion(suggestion)}
-                  className={`block w-full rounded-2xl border px-4 py-4 text-left transition ${
+                  className={`block w-full rounded-2xl border px-4 py-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2 ${
                     reuseProductId === suggestion.product_id
                       ? "border-slate-950 bg-slate-950 text-white"
                       : "border-slate-200 bg-white text-slate-900 hover:border-slate-900"
@@ -788,53 +846,94 @@ export function ListingsScreenV2() {
         </Card>
       ) : null}
 
-      <div className="grid gap-4">
-        {loading ? (
-          Array.from({ length: 4 }).map((_, idx) => (
-            <Card key={idx}>
-              <div className="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_repeat(3,minmax(0,0.5fr))]">
-                <div className="space-y-2">
-                  <Skeleton className="h-4 w-48" />
-                  <Skeleton className="h-4 w-28" />
-                </div>
-                <Skeleton className="h-11 w-full" />
-                <Skeleton className="h-11 w-full" />
-                <Skeleton className="h-11 w-full" />
-              </div>
-            </Card>
-          ))
-        ) : (payload?.data ?? []).length ? (
-          (payload?.data ?? []).map((listing) => (
-            <Card key={listing.id} className="space-y-4">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                <div className="flex min-w-0 items-start gap-4">
-                  <CloudinaryImage
-                    asset={listing.image}
-                    alt={listing.product.name}
-                    className="h-24 w-24 shrink-0"
-                    sizes="96px"
-                    fallbackLabel="No image"
-                  />
-                  <div className="min-w-0">
-                    <p className="truncate text-lg font-semibold text-slate-950">{listing.product.name}</p>
-                    <p className="mt-1 text-sm text-slate-500">{listing.product.sku}</p>
-                    <p className="mt-2 text-sm text-slate-600">Variant: {listing.variant.name}</p>
-                    {listing.image_source ? (
-                      <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-                        {listing.image_source} image
-                      </p>
-                    ) : null}
+      {loading ? (
+        <Table className="min-w-[56rem]">
+          <thead>
+            <tr>
+              <Th>Product</Th>
+              <Th>Status</Th>
+              <Th>Price</Th>
+              <Th>Inventory</Th>
+              <Th>Updated</Th>
+              <Th className="text-right">Actions</Th>
+            </tr>
+          </thead>
+          <tbody>
+            {Array.from({ length: 6 }).map((_, idx) => (
+              <Tr key={idx}>
+                <Td>
+                  <div className="flex items-center gap-3">
+                    <Skeleton className="h-12 w-12" />
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-48" />
+                      <Skeleton className="h-3 w-28" />
+                    </div>
                   </div>
-                </div>
-                <p className="text-sm text-slate-500">Updated {new Date(listing.updated_at).toLocaleString()}</p>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-3">
-                <Field label="Status">
+                </Td>
+                <Td>
+                  <Skeleton className="h-11 w-36" />
+                </Td>
+                <Td>
+                  <Skeleton className="h-11 w-28" />
+                </Td>
+                <Td>
+                  <Skeleton className="h-11 w-24" />
+                </Td>
+                <Td>
+                  <Skeleton className="h-4 w-40" />
+                </Td>
+                <Td>
+                  <div className="flex justify-end gap-2">
+                    <Skeleton className="h-10 w-28" />
+                  </div>
+                </Td>
+              </Tr>
+            ))}
+          </tbody>
+        </Table>
+      ) : (payload?.data ?? []).length ? (
+        <Table className="min-w-[56rem]">
+          <thead>
+            <tr>
+              <Th>Product</Th>
+              <Th>Status</Th>
+              <Th>Price</Th>
+              <Th>Inventory</Th>
+              <Th>Updated</Th>
+              <Th className="text-right">Actions</Th>
+            </tr>
+          </thead>
+          <tbody>
+            {(payload?.data ?? []).map((listing) => (
+              <Tr key={listing.id}>
+                <Td className="min-w-[18rem]">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <CloudinaryImage
+                      asset={listing.image}
+                      alt={listing.product.name}
+                      className="h-12 w-12 shrink-0"
+                      sizes="48px"
+                      fallbackLabel="No image"
+                    />
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold text-slate-950">{listing.product.name}</p>
+                      <p className="mt-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{listing.product.sku}</p>
+                      <p className="mt-1 text-xs text-slate-600">{listing.variant.name}</p>
+                      {listing.image_source ? (
+                        <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                          {listing.image_source} image
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+                </Td>
+                <Td className="whitespace-nowrap">
                   <Select
+                    aria-label="Status"
                     value={drafts[listing.id]?.status ?? listing.status ?? "active"}
                     onChange={(event) => updateDraft(listing.id, "status", event.target.value)}
                     disabled={mutatingListingId === listing.id}
+                    className="min-w-[9rem]"
                   >
                     {STATUS_OPTIONS.map((status) => (
                       <option key={status} value={status}>
@@ -842,56 +941,81 @@ export function ListingsScreenV2() {
                       </option>
                     ))}
                   </Select>
-                </Field>
-
-                <Field label="Price" hint={formatMoney(listing.price_cents, listing.currency)}>
+                </Td>
+                <Td className="whitespace-nowrap">
                   <Input
+                    aria-label="Price"
                     inputMode="decimal"
                     value={drafts[listing.id]?.priceRupees ?? priceInputFromCents(listing.price_cents)}
-                    onChange={(event) => updateDraft(listing.id, "priceRupees", event.target.value.replace(/[^\d.]/g, ""))}
+                    onChange={(event) =>
+                      updateDraft(listing.id, "priceRupees", event.target.value.replace(/[^\d.]/g, ""))
+                    }
                     disabled={mutatingListingId === listing.id}
+                    className="min-w-[7rem]"
                   />
-                </Field>
-
-                <Field
-                  label="Inventory"
-                  hint={listing.inventory_count <= 0 ? "Out of stock" : `${listing.inventory_count} available`}
-                >
+                  <p className="mt-2 text-xs text-slate-500">{formatMoney(listing.price_cents, listing.currency)}</p>
+                </Td>
+                <Td className="whitespace-nowrap">
                   <Input
+                    aria-label="Inventory"
                     inputMode="numeric"
                     value={drafts[listing.id]?.inventoryCount ?? String(listing.inventory_count)}
-                    onChange={(event) => updateDraft(listing.id, "inventoryCount", event.target.value.replace(/[^\d]/g, ""))}
+                    onChange={(event) =>
+                      updateDraft(listing.id, "inventoryCount", event.target.value.replace(/[^\d]/g, ""))
+                    }
                     disabled={mutatingListingId === listing.id}
+                    className="min-w-[6rem]"
                   />
-                </Field>
-              </div>
+                  <p className="mt-2 text-xs text-slate-500">
+                    {listing.inventory_count <= 0 ? "Out of stock" : `${listing.inventory_count} available`}
+                  </p>
+                </Td>
+                <Td className="whitespace-nowrap text-sm text-slate-500">
+                  {new Date(listing.updated_at).toLocaleString()}
+                </Td>
+                <Td className="whitespace-nowrap">
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => saveListing(listing).catch(() => null)}
+                      disabled={mutatingListingId === listing.id}
+                    >
+                      {mutatingListingId === listing.id ? "Saving..." : "Save"}
+                    </Button>
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      onClick={() => setDeleteTarget(listing)}
+                      disabled={mutatingListingId === listing.id}
+                    >
+                      Delete
+                    </Button>
+                  </div>
+                </Td>
+              </Tr>
+            ))}
+          </tbody>
+        </Table>
+      ) : (
+        <Card>
+          <p className="text-center text-sm text-slate-600">No listings found for this store.</p>
+        </Card>
+      )}
 
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => saveListing(listing).catch(() => null)}
-                  disabled={mutatingListingId === listing.id}
-                >
-                  {mutatingListingId === listing.id ? "Saving..." : "Save changes"}
-                </Button>
-                <Button
-                  variant="danger"
-                  size="sm"
-                  onClick={() => deleteListing(listing).catch(() => null)}
-                  disabled={mutatingListingId === listing.id}
-                >
-                  Delete listing
-                </Button>
-              </div>
-            </Card>
-          ))
-        ) : (
-          <Card>
-            <p className="text-center text-sm text-slate-600">No listings found for this store.</p>
-          </Card>
-        )}
-      </div>
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="Delete listing?"
+        description={
+          deleteTarget
+            ? `Delete ${deleteTarget.product.name} / ${deleteTarget.variant.name}. This removes it from the store and cannot be undone.`
+            : undefined
+        }
+        confirmLabel="Delete listing"
+        confirming={Boolean(deleteTarget && mutatingListingId === deleteTarget.id)}
+        onConfirm={() => confirmDeleteTarget().catch(() => null)}
+        onClose={() => setDeleteTarget(null)}
+      />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <Button variant="secondary" onClick={() => setPage((current) => Math.max(current - 1, 1))} disabled={page <= 1 || loading}>

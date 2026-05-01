@@ -3,8 +3,8 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-BACKEND_BASE="${BACKEND_BASE:-http://localhost:3015}"
-SSO_BASE="${SSO_BASE:-http://localhost:3001}"
+BACKEND_BASE="${BACKEND_BASE:-http://localhost:3001}"
+SSO_BASE="${SSO_BASE:-http://localhost:3003}"
 ADMINFRONT_BASE="${ADMINFRONT_BASE:-http://localhost:3000}"
 ADMINFRONT_B_BASE="${ADMINFRONT_B_BASE:-http://localhost:3000}"
 PASSWORD="${SEED_PASSWORD:-Password123!}"

@@ -63,7 +63,7 @@ module Api
           marketplace = if marketplace_id.present?
             Marketplace.kept.find_by(id: marketplace_id, organization_id: current_organization.id)
           else
-            Rails.cache.fetch("marketplace:default_for_org:#{current_organization.id}", expires_in: 60) do
+            TenantCache.fetch(namespace: "marketplace_default", key: "default", organization: current_organization, expires_in: 60) do
               Marketplace.kept.where(organization_id: current_organization.id).order(:name).first
             end
           end

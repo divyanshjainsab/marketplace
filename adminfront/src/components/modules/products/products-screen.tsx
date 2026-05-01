@@ -28,7 +28,7 @@ export function ProductsScreen() {
   const loading = workspaceLoading || productsSwr.isLoading;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <Card className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Catalog</p>

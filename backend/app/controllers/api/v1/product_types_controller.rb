@@ -14,7 +14,7 @@ module Api
 
       def show
         authorize @product_type
-        render_resource(@product_type, serializer: ProductTypeSerializer)
+        render_resource(@product_type, serializer: ProductTypeSerializer, context: { include_schema: true })
       end
 
       def create

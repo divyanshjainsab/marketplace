@@ -327,7 +327,7 @@ export function ListingsScreen() {
   }
 
   return (
-    <div className="space-y-5" data-tour="listings">
+    <div className="space-y-6" data-tour="listings">
       <Card className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Store inventory</p>
@@ -343,13 +343,13 @@ export function ListingsScreen() {
         </div>
       </Card>
 
-      <div className="grid gap-5 xl:grid-cols-[0.95fr_1.05fr]">
+      <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
         <Card className="bg-slate-50">
           <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Suggestions</p>
           <h2 className="mt-2 text-xl font-semibold tracking-tight text-slate-950">Reuse global products</h2>
           <p className="mt-2 text-sm text-slate-600">Start with a shared product to avoid duplicate catalog records.</p>
 
-          <div className="mt-5 space-y-3">
+          <div className="mt-6 space-y-3">
             {suggestions.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-6 text-sm text-slate-500">
                 Search by product name or SKU to surface reusable catalog matches.

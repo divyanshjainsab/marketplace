@@ -12,6 +12,17 @@ module Api
 
       def restore
         version = PageVersioningService.new(@page).restore!(version_number: @version.version_number)
+        @page.clear_cache
+        audit_log!(
+          action: "page.restore",
+          resource: @page,
+          changes: {},
+          metadata: {
+            market_place_id: current_marketplace.id,
+            page_slug: @page.slug,
+            version_number: @version.version_number
+          }
+        )
         render json: {
           message: "Page restored to version #{version.version_number}",
           version: version.summary

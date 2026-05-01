@@ -2,20 +2,27 @@ class Category < ApplicationRecord
   include SoftDeletable
   include Audited
 
+  belongs_to :product_type
   belongs_to :parent, class_name: "Category", optional: true
   has_many :children, class_name: "Category", foreign_key: :parent_id, dependent: :restrict_with_exception
 
   has_many :products, dependent: :restrict_with_exception
 
+  before_validation :infer_product_type_from_parent
   before_validation :assign_default_code
 
   validates :name, presence: true
-  validates :code, presence: true, uniqueness: { conditions: -> { kept } }
+  validates :code, presence: true, uniqueness: { scope: :product_type_id, conditions: -> { kept } }
 
   validate :parent_cannot_be_self
+  validate :parent_must_match_product_type
   validate :parent_cannot_create_cycle
 
   private
+
+  def infer_product_type_from_parent
+    self.product_type = parent.product_type if product_type.blank? && parent.present?
+  end
 
   def assign_default_code
     self.code = name.to_s.parameterize(separator: "_").presence if code.blank?
@@ -30,6 +37,14 @@ class Category < ApplicationRecord
     end
 
     errors.add(:parent_id, "cannot reference itself") if parent.present? && parent.equal?(self)
+  end
+
+  def parent_must_match_product_type
+    return if parent.blank?
+
+    return if parent.product_type_id == product_type_id
+
+    errors.add(:parent_id, "must belong to the same product type")
   end
 
   def parent_cannot_create_cycle

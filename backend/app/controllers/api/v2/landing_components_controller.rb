@@ -6,6 +6,7 @@ module Api
       before_action :set_component, only: :update
 
       def batch_update
+        requested_ids = []
         ActiveRecord::Base.transaction do
           components = normalized_components
           requested_ids = components.map { |component| component["id"] }.compact.map(&:to_i)
@@ -27,6 +28,16 @@ module Api
 
         capture_page_version(@page)
         @page.clear_cache
+        audit_log!(
+          action: "site_editor.components.batch_update",
+          resource: @page,
+          changes: {},
+          metadata: {
+            market_place_id: current_marketplace.id,
+            page_slug: @page.slug,
+            requested_component_ids: requested_ids
+          }
+        )
         head :ok
       rescue StandardError => e
         Rails.logger.error("[LandingComponentsController#batch_update] Error: #{e.message}\n#{e.backtrace.join("\n")}")
@@ -45,6 +56,16 @@ module Api
           component.page.clear_cache
         end
 
+        audit_log!(
+          action: "site_editor.component.update",
+          resource: @component.page,
+          changes: {},
+          metadata: {
+            market_place_id: current_marketplace.id,
+            page_slug: @component.page.slug,
+            component_id: @component.id
+          }
+        )
         head :ok
       rescue StandardError => e
         Rails.logger.error("[LandingComponentsController#update] Error: #{e.message}\n#{e.backtrace.join("\n")}")

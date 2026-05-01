@@ -23,7 +23,15 @@ module Api
         def create
           product_type = ProductType.new(product_type_params)
           authorize product_type
-          product_type.save!
+          ActiveRecord::Base.transaction do
+            product_type.save!
+            TenantCache.bump_namespace_version!(organization_id: current_organization.id, namespace: "admin_dashboard")
+            audit_log!(
+              action: "product_type.create",
+              resource: product_type,
+              changes: product_type.previous_changes
+            )
+          end
 
           render_resource(product_type, serializer: ProductTypeSerializer, status: :created)
         end

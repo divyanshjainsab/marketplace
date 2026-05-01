@@ -28,7 +28,20 @@ module Api
 
     def destroy
       # Core2 scopes deletes to the current marketplace templates; keep it strict.
-      Asset.kept.where(id: params[:id], market_place_id: current_marketplace.id).discard_all
+      asset = Asset.kept.find_by(id: params[:id], market_place_id: current_marketplace.id)
+      if asset.present?
+        before = asset.attributes
+        asset.discard
+        audit_log!(
+          action: "asset.delete",
+          resource: asset,
+          changes: asset.saved_changes,
+          metadata: {
+            before: before,
+            market_place_id: current_marketplace.id
+          }
+        )
+      end
       render json: {}, status: :no_content
     end
 
@@ -47,4 +60,3 @@ module Api
     end
   end
 end
-

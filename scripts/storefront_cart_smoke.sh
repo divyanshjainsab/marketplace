@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-BACKEND_BASE="${BACKEND_BASE:-http://localhost:3015}"
+BACKEND_BASE="${BACKEND_BASE:-http://localhost:3001}"
 TENANT_HOST="${TENANT_HOST:-localhost:3002}"
 
 tmpdir="$(mktemp -d)"
@@ -10,14 +10,26 @@ trap 'rm -rf "$tmpdir"' EXIT
 headers=(
   -H "Accept: application/json"
   -H "Content-Type: application/json"
-  -H "X-Forwarded-Host: ${TENANT_HOST}"
-  -H "X-Forwarded-Port: ${TENANT_HOST##*:}"
+  -H "Host: ${TENANT_HOST}"
 )
 
 cart_id="$(python3 -c 'import uuid; print(uuid.uuid4())')"
 
-listing_json="$(curl -sS "${headers[@]}" "${BACKEND_BASE}/api/listings?per_page=1")"
-variant_id="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["data"][0]["variant"]["id"])' <<<"$listing_json")"
+listing_json="$(curl -sS "${headers[@]}" "${BACKEND_BASE}/api/listings?status=active&per_page=50")"
+variant_id="$(python3 -c 'import json,sys
+payload=json.loads(sys.stdin.read())
+items=payload.get("data", [])
+for row in items:
+  inv=int(row.get("inventory_count") or 0)
+  if inv >= 3 and row.get("variant") and row["variant"].get("id"):
+    print(row["variant"]["id"])
+    raise SystemExit(0)
+print("")' <<<"$listing_json")"
+
+if [[ -z "$variant_id" ]]; then
+  echo "No active listing with inventory_count >= 3 found for tenant ${TENANT_HOST}" >&2
+  exit 1
+fi
 
 curl -sS -o /dev/null "${headers[@]}" \
   -X POST "${BACKEND_BASE}/api/cart/items?session_id=${cart_id}" \
@@ -44,4 +56,3 @@ printf "VARIANT_ID=%s\n" "$variant_id"
 printf "AFTER_ADD_ITEM_COUNT=%s\n" "$item_count"
 printf "AFTER_UPDATE_QUANTITY=%s\n" "$quantity"
 printf "AFTER_REMOVE_ITEM_COUNT=%s\n" "$final_count"
-

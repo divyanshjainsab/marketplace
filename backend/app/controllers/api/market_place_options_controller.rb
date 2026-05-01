@@ -5,10 +5,20 @@ module Api
     def update
       option = current_marketplace.market_place_option || current_marketplace.create_market_place_option!
 
-      if option.update(market_place_option_params)
-        head :no_content
-      else
-        render json: option.errors, status: :unprocessable_entity
+      ActiveRecord::Base.transaction do
+        if option.update(market_place_option_params)
+          audit_log!(
+            action: "marketplace_theme.update",
+            resource: current_marketplace,
+            changes: option.saved_changes,
+            metadata: {
+              option_id: option.id
+            }
+          )
+          head :no_content
+        else
+          render json: option.errors, status: :unprocessable_entity
+        end
       end
     end
 
@@ -66,4 +76,3 @@ module Api
     end
   end
 end
-

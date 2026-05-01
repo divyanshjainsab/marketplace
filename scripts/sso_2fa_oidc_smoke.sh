@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-BACKEND_BASE="${BACKEND_BASE:-http://localhost:3015}"
-SSO_BASE="${SSO_BASE:-http://localhost:3001}"
+BACKEND_BASE="${BACKEND_BASE:-http://localhost:3001}"
+SSO_BASE="${SSO_BASE:-http://localhost:3003}"
 PASSWORD="${SEED_PASSWORD:-Password123!}"
 EMAIL="${TWO_FACTOR_EMAIL:-superadmin@test.com}"
 SECRET="${TWO_FACTOR_SECRET:-JBSWY3DPEHPK3PXP}"

@@ -69,7 +69,7 @@ export function MediaUploadField({
   }
 
   return (
-    <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
+    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <label htmlFor={inputId} className="text-sm font-semibold text-slate-900">
@@ -94,9 +94,23 @@ export function MediaUploadField({
         />
 
         <div
-          className={`rounded-2xl border border-dashed p-4 transition sm:p-5 ${
+          role="button"
+          tabIndex={disabled || uploading ? -1 : 0}
+          aria-disabled={disabled || uploading}
+          className={`rounded-2xl border border-dashed p-4 transition sm:p-6 ${
             dragging ? "border-slate-900 bg-slate-100" : "border-slate-300 bg-white"
-          } ${error ? "border-rose-300 bg-rose-50/70" : ""}`}
+          } ${error ? "border-rose-300 bg-rose-50/70" : ""} ${disabled || uploading ? "cursor-not-allowed opacity-70" : "cursor-pointer"}`}
+          onClick={() => {
+            if (disabled || uploading) return;
+            inputRef.current?.click();
+          }}
+          onKeyDown={(event) => {
+            if (disabled || uploading) return;
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              inputRef.current?.click();
+            }
+          }}
           onDragOver={(event) => {
             event.preventDefault();
             if (!disabled && !uploading) setDragging(true);

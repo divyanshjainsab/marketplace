@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_04_24_120040) do
+ActiveRecord::Schema[7.1].define(version: 2026_04_25_100000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "pg_trgm"
@@ -31,6 +31,35 @@ ActiveRecord::Schema[7.1].define(version: 2026_04_24_120040) do
     t.index ["deleted_at"], name: "index_assets_on_deleted_at"
     t.index ["market_place_id"], name: "index_assets_on_market_place_id"
     t.index ["recordable_type", "recordable_id"], name: "index_assets_on_recordable"
+  end
+
+  create_table "attributes", force: :cascade do |t|
+    t.string "name", null: false
+    t.citext "code", null: false
+    t.string "data_type", null: false
+    t.text "description"
+    t.datetime "discarded_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["code"], name: "index_attributes_on_code", unique: true, where: "(discarded_at IS NULL)"
+    t.index ["discarded_at"], name: "index_attributes_on_discarded_at"
+  end
+
+  create_table "audit_logs", force: :cascade do |t|
+    t.bigint "organization_id", null: false
+    t.bigint "user_id"
+    t.string "action", null: false
+    t.string "resource_type", null: false
+    t.bigint "resource_id", null: false
+    t.jsonb "changes", default: {}, null: false
+    t.jsonb "metadata", default: {}, null: false
+    t.datetime "created_at", default: -> { "CURRENT_TIMESTAMP" }, null: false
+    t.index ["action"], name: "index_audit_logs_on_action"
+    t.index ["organization_id", "action", "created_at"], name: "index_audit_logs_on_organization_id_and_action_and_created_at"
+    t.index ["organization_id", "resource_type", "resource_id"], name: "idx_on_organization_id_resource_type_resource_id_b0548fc302"
+    t.index ["organization_id"], name: "index_audit_logs_on_organization_id"
+    t.index ["resource_type", "resource_id"], name: "index_audit_logs_on_resource_type_and_resource_id"
+    t.index ["user_id"], name: "index_audit_logs_on_user_id"
   end
 
   create_table "cart_items", force: :cascade do |t|
@@ -67,10 +96,25 @@ ActiveRecord::Schema[7.1].define(version: 2026_04_24_120040) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.bigint "parent_id"
-    t.index ["code"], name: "index_categories_on_code", unique: true, where: "(discarded_at IS NULL)"
+    t.bigint "product_type_id", null: false
     t.index ["discarded_at"], name: "index_categories_on_discarded_at"
     t.index ["parent_id"], name: "index_categories_on_parent_id"
+    t.index ["product_type_id", "code"], name: "index_categories_on_product_type_and_code_active", unique: true, where: "(discarded_at IS NULL)"
+    t.index ["product_type_id"], name: "index_categories_on_product_type_id"
     t.check_constraint "parent_id IS NULL OR parent_id <> id", name: "categories_parent_id_not_self"
+  end
+
+  create_table "inventories", force: :cascade do |t|
+    t.bigint "marketplace_id", null: false
+    t.bigint "listing_id", null: false
+    t.integer "quantity_on_hand", default: 0, null: false
+    t.datetime "discarded_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["discarded_at"], name: "index_inventories_on_discarded_at"
+    t.index ["listing_id"], name: "index_inventories_on_listing_id", unique: true
+    t.index ["marketplace_id"], name: "index_inventories_on_marketplace_id"
+    t.check_constraint "quantity_on_hand >= 0", name: "inventories_quantity_on_hand_non_negative"
   end
 
   create_table "landing_components", force: :cascade do |t|
@@ -266,6 +310,23 @@ ActiveRecord::Schema[7.1].define(version: 2026_04_24_120040) do
     t.index ["market_place_id"], name: "index_pages_on_market_place_id"
   end
 
+  create_table "product_type_attributes", force: :cascade do |t|
+    t.bigint "product_type_id", null: false
+    t.bigint "attribute_id", null: false
+    t.boolean "required", default: false, null: false
+    t.boolean "variant_level", default: false, null: false
+    t.integer "position", default: 0, null: false
+    t.jsonb "config", default: {}, null: false
+    t.datetime "discarded_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["attribute_id"], name: "index_product_type_attributes_on_attribute_id"
+    t.index ["discarded_at"], name: "index_product_type_attributes_on_discarded_at"
+    t.index ["product_type_id", "attribute_id"], name: "index_product_type_attributes_on_type_and_attribute_active", unique: true, where: "(discarded_at IS NULL)"
+    t.index ["product_type_id"], name: "index_product_type_attributes_on_product_type_id"
+    t.index ["variant_level"], name: "index_product_type_attributes_on_variant_level"
+  end
+
   create_table "product_types", force: :cascade do |t|
     t.string "name", null: false
     t.citext "code", null: false
@@ -370,6 +431,23 @@ ActiveRecord::Schema[7.1].define(version: 2026_04_24_120040) do
     t.index ["sso_user_id"], name: "index_users_on_sso_user_id"
   end
 
+  create_table "variant_images", force: :cascade do |t|
+    t.bigint "variant_id", null: false
+    t.integer "position", default: 0, null: false
+    t.text "image_url"
+    t.string "image_public_id"
+    t.bigint "image_version"
+    t.integer "image_width"
+    t.integer "image_height"
+    t.datetime "discarded_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["discarded_at"], name: "index_variant_images_on_discarded_at"
+    t.index ["image_public_id"], name: "index_variant_images_on_image_public_id"
+    t.index ["variant_id", "position"], name: "index_variant_images_on_variant_and_position_active", unique: true, where: "(discarded_at IS NULL)"
+    t.index ["variant_id"], name: "index_variant_images_on_variant_id"
+  end
+
   create_table "variants", force: :cascade do |t|
     t.bigint "product_id", null: false
     t.string "name", null: false
@@ -383,9 +461,12 @@ ActiveRecord::Schema[7.1].define(version: 2026_04_24_120040) do
     t.bigint "image_version"
     t.integer "image_width"
     t.integer "image_height"
+    t.virtual "options_digest", type: :string, as: "md5((COALESCE(options, '{}'::jsonb))::text)", stored: true
     t.index ["discarded_at"], name: "index_variants_on_discarded_at"
     t.index ["image_public_id"], name: "index_variants_on_image_public_id"
     t.index ["image_url"], name: "index_variants_on_image_url"
+    t.index ["options"], name: "index_variants_on_options", using: :gin
+    t.index ["product_id", "options_digest"], name: "index_variants_on_product_and_options_digest_active", unique: true, where: "(discarded_at IS NULL)"
     t.index ["product_id"], name: "index_variants_on_product_id"
     t.index ["sku"], name: "index_variants_on_sku", unique: true, where: "(discarded_at IS NULL)"
   end
@@ -402,12 +483,20 @@ ActiveRecord::Schema[7.1].define(version: 2026_04_24_120040) do
   end
 
   add_foreign_key "assets", "marketplaces", column: "market_place_id"
+  add_foreign_key "audit_logs", "organizations"
+  add_foreign_key "audit_logs", "users"
   add_foreign_key "cart_items", "carts"
   add_foreign_key "cart_items", "variants"
   add_foreign_key "carts", "marketplaces"
   add_foreign_key "carts", "users"
   add_foreign_key "categories", "categories", column: "parent_id"
+  add_foreign_key "categories", "product_types"
+  add_foreign_key "inventories", "listings"
+  add_foreign_key "inventories", "marketplaces"
   add_foreign_key "landing_components", "pages"
   add_foreign_key "page_versions", "pages"
   add_foreign_key "pages", "marketplaces", column: "market_place_id"
+  add_foreign_key "product_type_attributes", "attributes"
+  add_foreign_key "product_type_attributes", "product_types"
+  add_foreign_key "variant_images", "variants"
 end

@@ -17,19 +17,29 @@ module Images
       new.upload(io: io, filename: filename, content_type: content_type, folder: folder, tags: tags)
     end
 
-    def self.attach(record:, uploaded_file:, folder:, tags: nil, prefix: :image, delete_old: false)
+    def self.attach(record:, uploaded_file:, folder:, tags: nil, prefix: :image, delete_old: false, organization_id:, marketplace_id: nil, request_host: nil)
       Images::ImageAttachment.attach_upload(
         record: record,
         uploaded_file: uploaded_file,
         folder: folder,
         tags: tags,
         prefix: prefix,
-        delete_old: delete_old
+        delete_old: delete_old,
+        organization_id: organization_id,
+        marketplace_id: marketplace_id,
+        request_host: request_host
       )
     end
 
-    def self.delete_later(url: nil, public_id: nil, wait: nil)
-      new.delete_later(url: url, public_id: public_id, wait: wait)
+    def self.delete_later(url: nil, public_id: nil, wait: nil, organization_id:, marketplace_id: nil, request_host: nil)
+      new.delete_later(
+        url: url,
+        public_id: public_id,
+        wait: wait,
+        organization_id: organization_id,
+        marketplace_id: marketplace_id,
+        request_host: request_host
+      )
     end
 
     def upload(io:, filename:, content_type:, folder:, tags:)
@@ -71,15 +81,23 @@ module Images
       rewind_io(io)
     end
 
-    def delete_later(url: nil, public_id: nil, wait: nil)
+    def delete_later(url: nil, public_id: nil, wait: nil, organization_id:, marketplace_id: nil, request_host: nil)
       public_id = public_id.presence || CloudinaryPublicId.from_url(url)
       return nil if public_id.blank?
 
+      org_id = organization_id.to_i
+      raise ArgumentError, "organization_id is required for tenant-isolated background jobs" if org_id <= 0
+
+      context = {
+        request_host: request_host,
+        marketplace_id: marketplace_id
+      }.compact
+
       job = Images::DeleteCloudinaryAssetJob
       if wait.present?
-        job.set(wait: wait).perform_later(public_id)
+        job.set(wait: wait).perform_later(org_id, public_id, context)
       else
-        job.perform_later(public_id)
+        job.perform_later(org_id, public_id, context)
       end
     end
 

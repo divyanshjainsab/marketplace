@@ -13,7 +13,7 @@ module Api
         def index
           scope = Listing.kept
             .where(marketplace_id: current_marketplace.id)
-            .includes(:variant, product: %i[product_type category])
+            .includes(:inventory, :variant, product: %i[product_type category])
             .order(updated_at: :desc)
 
           page = paginate(scope)
@@ -23,12 +23,35 @@ module Api
         def create
           authorize Listing.new(marketplace: current_marketplace)
 
-          result = Listings::Create.call(
-            marketplace: current_marketplace,
-            params: listing_payload,
-            actor: Current.user,
-            suggestion_limit: per_page_limit
-          )
+          result = nil
+          listing = nil
+
+          ActiveRecord::Base.transaction do
+            result = Listings::Create.call(
+              marketplace: current_marketplace,
+              params: listing_payload,
+              actor: Current.user,
+              suggestion_limit: per_page_limit
+            )
+
+            next if result.status == :suggestions
+
+            listing = Listing.kept
+              .where(marketplace_id: current_marketplace.id)
+              .includes(:inventory, :variant, product: %i[product_type category])
+              .find(result.listing.id)
+
+            TenantCache.bump_namespace_version!(organization_id: current_organization.id, namespace: "admin_dashboard")
+            audit_log!(
+              action: "listing.create",
+              resource: result.listing,
+              changes: result.listing.previous_changes,
+              metadata: {
+                marketplace_id: current_marketplace.id,
+                status: result.status
+              }
+            )
+          end
 
           if result.status == :suggestions
             render json: {
@@ -41,24 +64,53 @@ module Api
             return
           end
 
-          listing = Listing.kept
-            .where(marketplace_id: current_marketplace.id)
-            .includes(:variant, product: %i[product_type category])
-            .find(result.listing.id)
-
           render_resource(listing, serializer: ListingSerializer, status: status_for_create_or_reuse(result.status))
         end
 
         def update
           authorize @listing
-          @listing.update!(listing_record_attributes)
-          attach_listing_image_if_present(@listing)
+
+          ActiveRecord::Base.transaction do
+            @listing.update!(listing_record_attributes)
+            listing_changes = @listing.saved_changes
+            inventory_changes = update_inventory_if_requested!(@listing)
+            image_changes = attach_listing_image_if_present(@listing)
+
+            combined = {}
+            combined["listing"] = listing_changes if listing_changes.present?
+            combined["inventory"] = inventory_changes if inventory_changes.present?
+            combined["image"] = image_changes if image_changes.present?
+
+            TenantCache.bump_namespace_version!(organization_id: current_organization.id, namespace: "admin_dashboard")
+            audit_log!(
+              action: "listing.update",
+              resource: @listing,
+              changes: combined,
+              metadata: {
+                marketplace_id: current_marketplace.id
+              }
+            )
+          end
           render_resource(@listing, serializer: ListingSerializer)
         end
 
         def destroy
           authorize @listing
-          @listing.discard
+          ActiveRecord::Base.transaction do
+            before = @listing.attributes
+            @listing.discard
+
+            TenantCache.bump_namespace_version!(organization_id: current_organization.id, namespace: "admin_dashboard")
+            audit_log!(
+              action: "listing.delete",
+              resource: @listing,
+              changes: @listing.saved_changes,
+              metadata: {
+                marketplace_id: current_marketplace.id,
+                before: before
+              }
+            )
+          end
           head :no_content
         end
 
@@ -67,7 +119,7 @@ module Api
         def set_listing
           @listing = Listing.kept
             .where(marketplace_id: current_marketplace.id)
-            .includes(:variant, product: %i[product_type category])
+            .includes(:inventory, :variant, product: %i[product_type category])
             .find(params[:id])
         end
 
@@ -123,7 +175,7 @@ module Api
         end
 
         def listing_record_attributes
-          listing_update_params.except(:image, :image_data)
+          listing_update_params.except(:image, :image_data, :inventory_count)
         end
 
         def attach_listing_image_if_present(listing)
@@ -145,9 +197,12 @@ module Api
               uploaded_file: image,
               folder: folder,
               tags: tags,
-              delete_old: true
+              delete_old: true,
+              organization_id: current_organization.id,
+              marketplace_id: current_marketplace.id,
+              request_host: Current.request_host
             )
-            return
+            return listing.saved_changes
           end
 
           image_data = listing_update_params[:image_data]
@@ -157,8 +212,23 @@ module Api
             record: listing,
             asset_payload: image_data,
             folder_prefix: folder,
-            delete_old: true
+            delete_old: true,
+            organization_id: current_organization.id,
+            marketplace_id: current_marketplace.id,
+            request_host: Current.request_host
           )
+
+          listing.saved_changes
+        end
+
+        def update_inventory_if_requested!(listing)
+          return unless listing_update_params.key?(:inventory_count)
+
+          inventory = listing.inventory || listing.build_inventory(marketplace: current_marketplace)
+          inventory.quantity_on_hand = listing_update_params[:inventory_count].to_i
+          inventory.save!
+
+          inventory.saved_changes
         end
 
         def status_for_create_or_reuse(status)

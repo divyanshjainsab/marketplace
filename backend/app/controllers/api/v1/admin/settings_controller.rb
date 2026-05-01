@@ -17,7 +17,15 @@ module Api
         end
 
         def update
-          current_organization.update_admin_settings!(settings_params.to_h)
+          ActiveRecord::Base.transaction do
+            current_organization.update_admin_settings!(settings_params.to_h)
+            TenantCache.bump_namespace_version!(organization_id: current_organization.id, namespace: "admin_dashboard")
+            audit_log!(
+              action: "organization.settings.update",
+              resource: current_organization,
+              changes: current_organization.saved_changes
+            )
+          end
 
           render json: {
             data: settings_payload

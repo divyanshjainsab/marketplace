@@ -7,7 +7,7 @@ module Api
         end
 
         def show
-          config = Rails.cache.fetch(cache_key, expires_in: 60) do
+          config = TenantCache.fetch(namespace: "homepage_config", key: "sanitized", organization: current_organization, expires_in: 60) do
             SiteEditor::HomepageConfigSanitizer.call(
               raw: current_organization.homepage_config || {},
               organization: current_organization
@@ -27,9 +27,19 @@ module Api
           previous_public_ids = media_public_ids(current_organization.homepage_config)
           sanitized = SiteEditor::HomepageConfigSanitizer.call(raw: raw, organization: current_organization)
 
-          current_organization.update!(homepage_config: sanitized)
-          Rails.cache.delete(cache_key)
-          Rails.cache.delete("homepage_config:org:#{current_organization.id}")
+          ActiveRecord::Base.transaction do
+            current_organization.update!(homepage_config: sanitized)
+            TenantCache.bump_namespace_version!(organization_id: current_organization.id, namespace: "homepage_config")
+            audit_log!(
+              action: "homepage_config.update",
+              resource: current_organization,
+              changes: current_organization.saved_changes,
+              metadata: {
+                removed_media_public_ids: previous_public_ids - media_public_ids(sanitized)
+              }
+            )
+          end
+
           delete_removed_media_assets(previous_public_ids, media_public_ids(sanitized))
 
           render json: {
@@ -41,10 +51,6 @@ module Api
         end
 
         private
-
-        def cache_key
-          "admin:site_editor:org:#{current_organization.id}"
-        end
 
         def media_public_ids(config)
           config = config.to_h if config.respond_to?(:to_h)
@@ -67,7 +73,7 @@ module Api
 
         def delete_removed_media_assets(previous_public_ids, current_public_ids)
           (previous_public_ids - current_public_ids).each do |public_id|
-            Images::ImageUploader.delete_later(public_id: public_id)
+            Images::ImageUploader.delete_later(public_id: public_id, organization_id: current_organization.id)
           end
         end
 

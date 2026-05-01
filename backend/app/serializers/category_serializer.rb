@@ -2,6 +2,7 @@ class CategorySerializer < BaseSerializer
   def as_json
     payload = {
       id: record.id,
+      product_type_id: record.product_type_id,
       name: record.name,
       code: record.code,
       parent_id: record.parent_id

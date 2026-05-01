@@ -23,6 +23,20 @@ module Api
             tags: Images::FolderPath.tags(target: media_target, organization: current_organization, marketplace: media_marketplace)
           )
 
+          audit_log!(
+            action: "media_asset.upload",
+            resource: media_marketplace || current_organization,
+            changes: {},
+            metadata: {
+              target: media_target,
+              marketplace_id: media_marketplace&.id,
+              public_id: result.public_id,
+              version: result.version,
+              width: result.width,
+              height: result.height
+            }
+          )
+
           response.headers["Cache-Control"] = "no-store"
 
           render json: {

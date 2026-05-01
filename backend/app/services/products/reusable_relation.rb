@@ -19,11 +19,11 @@ module Products
       when :disabled
         Product.none
       when :global
-        Product.kept.where(id: Listing.kept.select(:product_id))
+        Product.kept.where(id: Listing.unscoped.kept.select(:product_id))
       else
         return Product.none unless organization_id.positive?
 
-        listing_scope = Listing.kept.joins(:marketplace).where(marketplaces: { organization_id: organization_id })
+        listing_scope = Listing.unscoped.kept.joins(:marketplace).where(marketplaces: { organization_id: organization_id })
         Product.kept.where(id: listing_scope.select(:product_id))
       end
     end

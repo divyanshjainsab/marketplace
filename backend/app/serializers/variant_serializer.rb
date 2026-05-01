@@ -5,6 +5,7 @@ class VariantSerializer < BaseSerializer
       product_id: record.product_id,
       name: record.name,
       sku: record.sku,
+      attributes: record.options,
       options: record.options,
       image_url: record.image_url,
       image: ImageAssetSerializer.one(record.image_asset)
